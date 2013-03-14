@@ -71,7 +71,7 @@ local IPv6_Create_HostsRange = function( IPv6Address, Prefix)
 		
 		-- Testing local Number_Instead_String = false
 		TheNext = itsismx.GetNext_AddressIPv6(TheNext,Prefix)
-		print(#Hosts)
+		
 	until not ipOps.ip_in_range(TheNext, IPv6Address .. "/" .. Prefix)
 	return Hosts
 end
@@ -124,8 +124,8 @@ local IPv6_GetLowBytesHost = function( IPv6PRefix , NBits)
 			TablaHost = IPv6_Create_HostsRange(SubRed,Prefijo)
 			
 			stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. " Subnet/Prefix: " ..
-					IPv6PRefix .. "\t Total low-bytes nodes (Prefix" .. Prefijo ..
-					" ) found: " .. #TablaHost )
+					IPv6PRefix .. "\t Total low-bytes nodes (Using the last " .. 128 - Prefijo ..
+					" bits ) found: " .. #TablaHost )
 			
 			bExito = true
 	elseif ( type(IPv6PRefix) ==  "table") then
@@ -201,6 +201,9 @@ local PreScanning = function()
 	local Usuarios, Universales = {},{}
 	local bUniv, sUniv, bUser, sUser = true, "", true, ""
 	
+	stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+			": Begining the Pre-scanning work... "    )
+	
 	-- Existen 2 fuentes de Prefijos previos (No excluyentes):
 	-- 1: Universales descubiertos por todo los scripts de la tesis
 	-- 2: Provistos por el usuario mediante un argumento
@@ -245,8 +248,7 @@ local PreScanning = function()
 		for _,v in ipairs(Universales) do  table.insert(tSalida.Nodos,v) end 
 	end
 	-- end 
-	--We have two options with  PrefijosUsuario String or Table 
-	
+	--We have two options with  PrefijosUsuario String (ONE) or Table (One or more) 
 	if   type(PrefijosUsuario) ==  "string"  and   #PrefijosUsuario > 0  then
 		stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..  
 							" Number of Prefixes provided by  the user: 1"  )
@@ -283,6 +285,10 @@ local HostScanning = function( Reales, Totales)
 	local tSalida = { Nodos={}, Error=""}
 	local bExito = false
 	local bMatch, sMatch
+	
+	
+	stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+			": Begining the Host-scanning results... "    )
 	
 	if ( Reales == nil or Totales == nil) then
 			tSalida[Error]="No hosts scanned Or  the pre-scanning  didn-t workd. (Use debug -d)"

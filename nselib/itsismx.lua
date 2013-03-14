@@ -358,7 +358,7 @@ end
 		-- 96 Prefix left 32 bits to search
 		-- 112 prefix left 16 bits to search
 		-- 120 prefix left  8 bits to search
-	print(IPv6Address)
+	--print(IPv6Address)
 	IPv6Address = ipOps.ip_to_bin(IPv6Address)	 
 	if 	Number_Instead_String ~= true then	
 		UNO = ipOps.ip_to_bin("::1")		
