@@ -316,7 +316,10 @@ local HostScanning = function( Reales, Totales)
 	end
 	
 	
-	
+	-- A this point we have the total nodes discovered by this mechanism
+	-- As the last Script will gather a final report we transfer  those discovered
+	-- nodes to a Registry ( at nmap.itsismx.LowByt ) for future use.
+	stdnse.registry_add_array(nmap.itsismx.LowByt, tSalida[Nodos], false )
 	
 	return bExito, tSalida
 end
@@ -368,7 +371,7 @@ action = function()
 					tOutput.Error =  SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ":WARNING: There had been some lesser incovenient." .. 
 							" You can use -d[d] for see the problem " 
 				else 
-					tOutput.Error = SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ":WARNING: Not all the nodes were able toplace for the scanning pahe." .. 
+					tOutput.Error = SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ":WARNING: Not all the nodes were able to place for the scanning pahe." .. 
 							" Only " .. sHostsPre  
 				end
 				stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. "  finished."  )
