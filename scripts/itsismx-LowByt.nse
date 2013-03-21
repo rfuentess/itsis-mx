@@ -23,7 +23,7 @@ description=[[
 --
 -- @output
 
--- nmap.registry.itsismx.LowBytes.LowByt-PreHost Thought it-s a variable
+-- nmap.registry.itsismx.LowBytes.LowByt_PreHost Thought it-s a variable
 --  isn't for the user but instead is for pass information from Pre-scanning 
 -- script to  Host-scanning script
 
@@ -33,10 +33,16 @@ description=[[
 -- @args itsismx-LowByt.nbits  Indicate how many Bites to consider
 --     as low. Valid range: 3-16 (default 8 )
 -- @args itsismx-LowByt.OverrideLock  TRUE: Will get ALL the posibles hosts, even if
---		that mean brute force of 96 bits. FALSE: Will not exced from 28 bits
---		(Little more of  quarter million hosts).  By default it-s False (any 
---		value different to Nil will be take as "TRUE", except FALSE
--- @args newtargets  MANDATORY We need this for the Scritp to work properly.		
+--		that mean brute force of 96 bits. FALSE: Will not exced from 16 bits.
+--      By default it-s False (any  value different to Nil will be take 
+--		as "TRUE", except FALSE
+-- @args newtargets  MANDATORY Need for the host-scaning to succes 
+-- @args itsismx-IPv6ExMechanism 	Nmap don't do math operations with IPv6  because the 
+--		 big value of those address. We use own methods which are: 
+--			"number"	- 4 Numbers of 32 bits (Mathematical operations)
+--			"sring"		- (Default) 128 Characters on string  (Pseudo Boolean operations)
+		
+--  (Host scanning phase.)		
 		
 --
 -- Version 0.1
@@ -46,6 +52,7 @@ description=[[
 author = "Raul Fuentes"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
+
 
 
 ---
@@ -61,17 +68,20 @@ local IPv6_Create_HostsRange = function( IPv6Address, Prefix)
 	
 	
 	TheNext, TheLast = ipOps.get_ips_from_range(IPv6Address .. "/" .. Prefix)
+	
+	-- This can be affected by itsismx-IPv6ExMechanism
+	local IPv6ExMechanism = stdnse.get_script_args( "itsismx-IPv6ExMechanism" )
 
+	
 	-- Now the hard part...   numbers in NSE (LUA 5.2) are limited to 10^14..
 	-- So... we can0t do the easy life to pass to number and do the maths there...
 	-- There are extras libraries for Lua 5.2 but aren't part of Nmap project (yet)
 	-- we have only strings for do the things 
 	repeat  
 		table.insert(Hosts,TheNext)
-		
 		-- Testing local Number_Instead_String = false
-		TheNext = itsismx.GetNext_AddressIPv6(TheNext,Prefix)
-		
+		TheNext = itsismx.GetNext_AddressIPv6(TheNext,Prefix, IPv6ExMechanism)
+
 	until not ipOps.ip_in_range(TheNext, IPv6Address .. "/" .. Prefix)
 	return Hosts
 end
@@ -231,9 +241,9 @@ local PreScanning = function()
 	elseif tonumber(NumBits) < 2 then 
 		NumBits = 2
 		tSalida.Error = "Was add a very small value to nbits. Was fixed to 2"
-	elseif tonumber(NumBits) > 24 then 
-		NumBits = 24
-		tSalida.Error = "Was add a very high value to nbits. Was fixed to 24"
+	elseif tonumber(NumBits) > 16 then 
+		NumBits = 16
+		tSalida.Error = "Was add a very high value to nbits. Was fixed to 16"
 	end
 	
 	stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
@@ -272,67 +282,82 @@ local PreScanning = function()
 end
 
 ---
--- El objetivo de esta fase es registrar la tabla de hosts y hacer un reporte de nodos  
--- descubiertos por este script.
--- Para no duplicar elementos, la fase pre-scanning dejara un registro de los nodos que genero
---  para que nosotros confirmemos su existencia.
--- @args 	nmap.registry.itsismx.LowBytes.Hosts	
+-- All the nodes that come to this point were discovered by the pre-scanning function
+-- So we only need to generate a final report 	
 -- @return 	Boolean 			TRUE si no se hallo problema alguno durante el proceso.
 -- @return 	Table 				(Salida estandar)TABLA Listado de prefijos explorados y 
 --								  cantidad de bits en cada uno.
-local HostScanning = function( Reales, Totales)
+local HostScanning = function( host)
 	
 	local tSalida = { Nodos={}, Error=""}
-	local bExito = false
-	local bMatch, sMatch
+	local aux
 	
 	
-	stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+	stdnse.print_debug(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 			": Begining the Host-scanning results... "    )
+
+
+	-- Falta aniadir un handler aqui.
+	aux = nmap.registry.itsismx[SCRIPT_NAME]
 	
-	if ( Reales == nil or Totales == nil) then
-			tSalida[Error]="No hosts scanned Or  the pre-scanning  didn-t workd. (Use debug -d)"
-			return bExito, tSalida
-	elseif #Reales == 0 then	-- It;s a valid answer (thought sad)
-			return true, tSalida
-	elseif #Totales == 0 then  -- This mean the script objective didn't work but host added by user yes.
-			tSalida[Error]=" No one host from the Pre-Scanning are online "
-			return true, tSalida
+	if aux == nil then 
+		tSalida.Error = "You must first initialize the global register Itsismx (There is a global function for that)"
+		return false, tSalida
 	end
 
-	-- Now we search in the Reales by anyd exact dupplicate from Totales.
-	bMatch = true -- at least a partial result come from this
-	for _, Host in pairs(Reales) do 
-		for _, Objetivo in pairs(Totales) do
-			bMatch, sMatch = compare_ip(Host, "eq", Objetivo)
-			if bMatch == nil then
-				tSalida[Error]= tSalida[Error] .. "\n\t" ..  sMatch
-			elseif bMatch then
-				table.insert( tSalida[Nodos], Host)
-				break;
-			end
-		end
-		
-	end
+	--We us the aux for be able to add a new element to the table
+	aux[#aux +1] = host.ip
+	nmap.registry.itsismx[SCRIPT_NAME] = aux
+	table.insert(tSalida.Nodos,host.ip)
 	
-	
-	-- A this point we have the total nodes discovered by this mechanism
-	-- As the last Script will gather a final report we transfer  those discovered
-	-- nodes to a Registry ( at nmap.itsismx.LowByt ) for future use.
-	stdnse.registry_add_array(nmap.itsismx.LowByt, tSalida[Nodos], false )
-	
-	return bExito, tSalida
+	return true, tSalida
 end
 
 ---
 -- Pracicamente solo nos interesa que tengamos IPv6 y que exista una tabla
 -- hosts.
 prerule = function() return ( nmap.address_family() == "inet6") end
-hostrule = function(host) if #host >= 1 then return true else return false end end
+---
+-- This rule actually can do almost everything we need. "host" will be each host that is up
+-- so we only need to confirm that host is one of the previous pre-scanning phase nodesand return 
+-- true.
+hostrule = function(host) 
+	
+	--Debug
+	 -- local key, elemento 
+	  -- for key, elemento in pairs(nmap.registry.args) do
+		  -- print(key, elemento)
+	 -- end
+
+	
+	local  Totales, Objetivo, bMatch, sMatch  = nmap.registry.LowByt_PreHost	
+	
+	
+	-- print(Totales)
+	if Totales == nil  then return false end
+	--print("Totales:" .. #Totales)
+	
+	-- for key, elemento in pairs(Totales) do
+		 -- print(key, elemento)
+	 -- end
+	
+	for _, Objetivo in pairs( Totales ) do
+		
+		bMatch, sMatch = ipOps.compare_ip(host.ip, "eq", Objetivo)
+		if bMatch == nil then
+			--print (sMatch)
+			stdnse.print_debug(1, "\t hostrule  had a error with " ..   
+								host.ip .. "\n Error:" .. sMatch )
+		elseif bMatch then
+			return true
+		end
+	end
+	
+	return false
+end
 
 
-
-action = function()
+action = function(host)
 
 	
 	--Variables utilizadas para generar el reporte de salida
@@ -342,13 +367,18 @@ action = function()
 	local tSalida =  { Nodos={}, Error=""}
 	local  bHostsPre, sHostsPre 
 	
+	itsismx.Registro_Global_Inicializar(SCRIPT_NAME)
+	
+	
 	-- Lo mas sano es irnos por separar las acciones de cada fase.
 	if ( SCRIPT_TYPE== "prerule" ) then
 		bExito, tSalida = PreScanning()
 		
 	elseif ( SCRIPT_TYPE== "hostrule" ) then
 		
-		bExito, tSalida = HostScanning(host, registry_get("LowByt-PreHost") )
+		bExito, tSalida = HostScanning(host)
+
+		
 	else -- uh? (Can't happen but better cover this)
 		tSalida[Error] = "The type of rule  isn't correct. You must review the description of the script."
 		bExito = false;
@@ -364,8 +394,12 @@ action = function()
 		if SCRIPT_TYPE== "prerule"  then	-- We add the to the  host phase scanning.
 			bAdding, sHostsPre = target.add(table.unpack(tSalida.Nodos) )
 			if bAdding == true then
-				stdnse.registry_add_table( "LowByt-PreHost", tSalida.Nodos) 
+				
+				--stdnse.registry_add_array( "LowByt_PreHost", tSalida.Nodos) 
+				nmap.registry.LowByt_PreHost  = tSalida.Nodos
 				table.insert(tOutput, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ":  Were added " .. #tSalida.Nodos .. " nodes to the scan" )
+				
+				
 				
 				if #tSalida.Error ~= 0 then 
 					tOutput.Error =  SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ":WARNING: There had been some lesser incovenient." .. 
@@ -379,13 +413,14 @@ action = function()
 				bExito = false
 				tOutput.Error = SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ": " .. sHostsPre
 			end 
-		end
+		
 	
-		if SCRIPT_TYPE== "hostrule" then -- Now we display the targets!
-				table.insert( tOutput , tSalidas[Nodos]  ) 
+		elseif SCRIPT_TYPE== "hostrule" then -- Now we display the targets!
+				
+				table.insert( tOutput , tSalida.Nodos  ) 
 			
-				if (#tSalida[Error] == 0 ) then
-					tOutput[Error] = tSalida[Error]
+				if (#tSalida.Error == 0 ) then
+					tOutput.Error = tSalida.Error
 				end
 				
 				
@@ -393,6 +428,6 @@ action = function()
 	end
 	 
 	return stdnse.format_output(bExito, tOutput);
-
+	
 
 end

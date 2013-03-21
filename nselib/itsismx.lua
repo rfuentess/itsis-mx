@@ -326,13 +326,79 @@ local Sumador128bits = function ( A, B, Cin)
 	return Sstring,  tostring(Cout)
 end
 
+--- This function will always return the next inmediatly  IPv6
+-- address. This work only with String format.
+-- @args	IPv6Address	A String IPv6 address  X:X:X:X:X:X:X:X
+-- @args	Prefix	Optional Prefix. If it-s provided the function 
+--			 will check to do sum with lesser bits (64, 32, 16 or 8)
+-- @returns	String 128 bits of a IPv6 Address
+local GetNext_AddressIPv6_String = function(IPv6Address, Prefix)
 
+	local UNO
+	local Next
 
---[[
-
-		Functions for be called by  the scripts 
+	UNO = ipOps.ip_to_bin("::1")		
+		
+	if (not  Prefix )  then -- nil?
+		--print("NIL")
+		Next = Sumador128bits( IPv6Address, UNO , "0")
+	elseif ( Prefix > 120) then
+		--print(">= 120")
+		Next = Sumador8bits( IPv6Address:sub(121,128), UNO:sub(121,128) , "0")
+		Next = IPv6Address:sub(1,120) .. Next
+	elseif (  Prefix > 112) then
+		--print(">= 112")
+		Next = Sumador16bits( IPv6Address:sub(113,128), UNO:sub(113,128) , "0")
+		Next = IPv6Address:sub(1,112) .. Next
+	elseif (  Prefix > 96) then
+		--print ( ">96") 
+		Next = Sumador32bits( IPv6Address:sub(97,128), UNO:sub(97,128) , "0")
+		Next = IPv6Address:sub(1,96) .. Next
+		
+	elseif (  Prefix > 64) then
+		--print ( ">64") 
+		Next = Sumador64bits( IPv6Address:sub(65,128), UNO:sub(65,128) , "0")
+		Next = IPv6Address:sub(1,64) .. Next
+	else -- Wasn't need the Prefix but anyway...
+		Next = Sumador128bits( IPv6Address, UNO , "0")
+	end
 	
---]]
+	return Next
+end
+
+--- This function will always return the next inmediatly  IPv6
+-- address. This work only with a structure of 4 numbers.
+-- @args	IPv6Address	A String IPv6 address  X:X:X:X:X:X:X:X
+-- @args	Prefix	Optional Prefix. If it-s provided the function 
+--			 will check to do sum with lesser bits (64, 32, 16 or 8)
+-- @returns	String 128 bits of a IPv6 Address
+local GetNext_AddressIPv6_4Structure = function(IPv6Address, Prefix)
+	local UNO
+	local Next, Current
+	
+	--print("\t lineal")
+	Current = 	{ ParteAltaH = 0, ParteAltaL = 0, ParteBajaH = 0, ParteBajaL = 0 }
+	UNO = 		{ ParteAltaH = 0, ParteAltaL = 0, ParteBajaH = 0, ParteBajaL = 1 }
+	
+	--print(#Current)
+	--print(Current.ParteAltaH ..  Current.ParteAltaL .. Current.ParteBajaH  .. Current.ParteBajaL)
+	--print(IPv6Address)
+	Current.ParteAltaH =  Bits32_BinToNumber( IPv6Address:sub(1,32)  )
+	Current.ParteAltaL =  Bits32_BinToNumber( IPv6Address:sub(33,64)  )		
+	Current.ParteBajaH =  Bits32_BinToNumber( IPv6Address:sub(65,96)  )
+	Current.ParteBajaL =  Bits32_BinToNumber( IPv6Address:sub(97,128)  )
+	
+	--print(#Current)
+	--print(#UNO)
+	-- Now we add those numbers and make Casting (abusing a little of Lua)
+	Next = Bits32_suma128(Current,UNO )
+	Next = Bits32_NumberToBin( Next.ParteAltaH) .. 
+		   Bits32_NumberToBin( Next.ParteAltaL) .. 
+		   Bits32_NumberToBin( Next.ParteBajaH) .. 
+		   Bits32_NumberToBin( Next.ParteBajaL)
+	
+	return Next
+end
 
 
 ---
@@ -343,78 +409,39 @@ end
 -- make math with 4 separed numbers.
 -- Note: By default use the 128 bits for adding but if the 
 -- the prefix its big can be a waste, that is why  there is a option 
--- for reduce the number of bits to sum (String case only).
--- @args 	If true will use the aproach with structures if false 
+-- for reduce the number of bits to sum (String case only). 
 -- @args	IPv6Address	A String IPv6 address  X:X:X:X:X:X:X:X
 -- @args	Prefix	Optional Prefix. If it-s provided the function 
---			will check to do sum with lesser bits (64, 32, 16 or 8)
+--			 will check to do sum with lesser bits (64, 32, 16 or 8)
+-- @args 	IPv6_Mech_Operator If true will use the aproach with 
+--			 structures if false
 -- @return String Formated full IPv6 X:X:X:X:X:X:X:X)
- GetNext_AddressIPv6 = function(IPv6Address, Prefix, Number_Instead_String)
+ GetNext_AddressIPv6 = function(IPv6Address, Prefix, IPv6_Mech_Operator)
 
-		local UNO
-		local Next, Current
+	local Next = "::"
+	-- 64 prefix left 64 bits to search
+	-- 96 Prefix left 32 bits to search
+	-- 112 prefix left 16 bits to search
+	-- 120 prefix left  8 bits to search
 		
-		-- 64 prefix left 64 bits to search
-		-- 96 Prefix left 32 bits to search
-		-- 112 prefix left 16 bits to search
-		-- 120 prefix left  8 bits to search
+	--First... Which mechanism?	
+		
 	--print(IPv6Address)
-	IPv6Address = ipOps.ip_to_bin(IPv6Address)	 
-	if 	Number_Instead_String ~= true then	
-		UNO = ipOps.ip_to_bin("::1")		
+	IPv6Address = ipOps.ip_to_bin(IPv6Address)	 	
+	if 	IPv6_Mech_Operator == nil then	
+		Next = GetNext_AddressIPv6_String(IPv6Address, Prefix)
 		
-		if (not  Prefix )  then -- nil?
-			--print("NIL")
-			Next = Sumador128bits( IPv6Address, UNO , "0")
-		elseif ( Prefix > 120) then
-			--print(">= 120")
-			Next = Sumador8bits( IPv6Address:sub(121,128), UNO:sub(121,128) , "0")
-			Next = IPv6Address:sub(1,120) .. Next
-		elseif (  Prefix > 112) then
-			--print(">= 112")
-			Next = Sumador16bits( IPv6Address:sub(113,128), UNO:sub(113,128) , "0")
-			Next = IPv6Address:sub(1,112) .. Next
-		elseif (  Prefix > 96) then
-			--print ( ">96") 
-			Next = Sumador32bits( IPv6Address:sub(97,128), UNO:sub(97,128) , "0")
-			Next = IPv6Address:sub(1,96) .. Next
-			
-		elseif (  Prefix > 64) then
-			--print ( ">64") 
-			Next = Sumador64bits( IPv6Address:sub(65,128), UNO:sub(65,128) , "0")
-			Next = IPv6Address:sub(1,64) .. Next
-		else -- Wasn't need the Prefix but anyway...
-			Next = Sumador128bits( IPv6Address, UNO , "0")
-		end
+	elseif IPv6_Mech_Operator:lower(IPv6_Mech_Operator) == "string"  then --  We create two specials tables
 		
-		--Next = ipOps.bin_to_ip(Next)
-		
-	else --  We create two specials tables
-	
-		--print("\t lineal")
-		Current = 	{ ParteAltaH = 0, ParteAltaL = 0, ParteBajaH = 0, ParteBajaL = 0 }
-		UNO = 		{ ParteAltaH = 0, ParteAltaL = 0, ParteBajaH = 0, ParteBajaL = 1 }
-		
-		--print(#Current)
-		--print(Current.ParteAltaH ..  Current.ParteAltaL .. Current.ParteBajaH  .. Current.ParteBajaL)
-		--print(IPv6Address)
-		Current.ParteAltaH =  Bits32_BinToNumber( IPv6Address:sub(1,32)  )
-		Current.ParteAltaL =  Bits32_BinToNumber( IPv6Address:sub(33,64)  )		
-		Current.ParteBajaH =  Bits32_BinToNumber( IPv6Address:sub(65,96)  )
-		Current.ParteBajaL =  Bits32_BinToNumber( IPv6Address:sub(97,128)  )
-		
-		--print(#Current)
-		--print(#UNO)
-		-- Now we add those numbers and make Casting (abusing a little of Lua)
-		Next = Bits32_suma128(Current,UNO )
-		Next = Bits32_NumberToBin( Next.ParteAltaH) .. 
-			   Bits32_NumberToBin( Next.ParteAltaL) .. 
-			   Bits32_NumberToBin( Next.ParteBajaH) .. 
-			   Bits32_NumberToBin( Next.ParteBajaL)
+		Next = GetNext_AddressIPv6_String(IPv6Address, Prefix)
 			  
-		--print(Next)
-	end	-- 
-		return ipOps.bin_to_ip(Next)
+	elseif  IPv6_Mech_Operator:lower(IPv6_Mech_Operator) == "number" then	
+		
+		Next = GetNext_AddressIPv6_4Structure(IPv6Address, Prefix)
+	end	-- For the moment are the only case, is something come wrong Next is a invalid IPv6 address
+		
+		
+	return ipOps.bin_to_ip(Next)
 end 
 
 
@@ -440,6 +467,33 @@ end
 	end
 	
 	return Dirre6, Prefijo
+end
+
+--- 
+-- This function will initialize the global registry nmap.registry.itsismx
+-- As this is global will check if was already called by one previous script 
+-- if not, will create it. In both cases  a sub entry
+  Registro_Global_Inicializar =  function ( Registro )
+
+	local Global = nmap.registry.itsismx
+		
+	if Global  == nil  then --The first script to run initialice all the register
+		
+		Global = {}
+		Global[Registro] = {}
+		
+		nmap.registry.itsismx = Global
+		
+	elseif  Global[Registro] == nil then --- WE MUST BE CAREFUL Don't overwritte other registry
+		nmap.registry.itsismx[Registro]  = {}
+		
+	end
+	
+	-- local key, elemento 
+	-- for key, elemento in pairs(nmap.registry.itsismx) do
+		-- print(key, elemento)
+	-- end
+		
 end
 
 
