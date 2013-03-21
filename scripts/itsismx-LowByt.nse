@@ -22,14 +22,29 @@ description=[[
 -- nmap -6 --script itsismx-LowByt
 --
 -- @output
+-- Pre-scan script results:
+-- | itsismx-LowByt:
+-- |_  itsismx-LowByt.prerule:  Were added 256 nodes to the scan
+-- Nmap scan report for Muu.int-evry.fr (2001:db8:c0ca:1::a)
+-- Host is up.
+
+-- Host script results:
+-- | itsismx-LowByt:
+-- |_    2001:db8:c0ca:1::a
+
 
 -- nmap.registry.itsismx.LowBytes.LowByt_PreHost Thought it-s a variable
---  isn't for the user but instead is for pass information from Pre-scanning 
--- script to  Host-scanning script
-
+--   isn't for the user but instead is for pass information from Pre-scanning 
+--   script to  Host-scanning script
+-- nmap.registry.itsismx.LowByt Is a global Registry (the final objective of this script)
+--   will have all the valid IPv6 address discovered with this Script
 -- 
--- @args itsismx-LowByt.subnet IT's table/single  IPv6 address with prefix
+-- @args itsismx-subnet IT's table/single  IPv6 address with prefix
 --	   (Ex. 2001:db8:c0ca::/48 or { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 })
+-- @args itsismx-IPv6ExMechanism 	Nmap don't do math operations with IPv6  because the 
+--		 big value of those address. We use own methods which are: 
+--			"number"	- 4 Numbers of 32 bits (Mathematical operations)
+--			"sring"		- (Default) 128 Characters on string  (Pseudo Boolean operations)
 -- @args itsismx-LowByt.nbits  Indicate how many Bites to consider
 --     as low. Valid range: 3-16 (default 8 )
 -- @args itsismx-LowByt.OverrideLock  TRUE: Will get ALL the posibles hosts, even if
@@ -37,15 +52,10 @@ description=[[
 --      By default it-s False (any  value different to Nil will be take 
 --		as "TRUE", except FALSE
 -- @args newtargets  MANDATORY Need for the host-scaning to succes 
--- @args itsismx-IPv6ExMechanism 	Nmap don't do math operations with IPv6  because the 
---		 big value of those address. We use own methods which are: 
---			"number"	- 4 Numbers of 32 bits (Mathematical operations)
---			"sring"		- (Default) 128 Characters on string  (Pseudo Boolean operations)
-		
---  (Host scanning phase.)		
-		
+
+
 --
--- Version 0.1
+-- Version 0.5
 -- Created 26/02/2013 - v0.1 - created by Ing. Raul Fuentes <patrik@cqure.net>
 --
 
@@ -222,7 +232,7 @@ local PreScanning = function()
 	--PrefijosUniversales = nmap.registry.itsismx.PrefixesKnown 
 	
 	PrefijosUniversales = stdnse.get_script_args('nmap.registry.itsismx.PrefixesKnown ')
-	PrefijosUsuario, NumBits = stdnse.get_script_args('itsismx-LowByt.subnet', 'itsismx-LowByt.nbits')
+	PrefijosUsuario, NumBits = stdnse.get_script_args('itsismx-subnet', 'itsismx-LowByt.nbits')
 	
 	if PrefijosUniversales == nil and PrefijosUsuario == nil then  --Esto si es muy malo
 		tSalida.Nodos = {}
@@ -292,7 +302,7 @@ local HostScanning = function( host)
 	local tSalida = { Nodos={}, Error=""}
 	local aux
 	
-	
+	--Each host is too much!
 	stdnse.print_debug(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 			": Begining the Host-scanning results... "    )
 
