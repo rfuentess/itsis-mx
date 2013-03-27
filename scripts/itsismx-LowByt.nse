@@ -5,7 +5,6 @@ local table = require "table"
 local target = require "target"
 local itsismx = require "itsismx"
 
---local itsismx = require "itsismx"
 description=[[
  Explore the network tryng to find  IPv6 Nodes using low-bytes. 
  Will try to use already known sub-networks of any range and if there
