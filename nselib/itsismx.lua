@@ -22,10 +22,8 @@ _ENV = stdnse.module("itsismx", stdnse.seeall)
 
 
 
---[[
+--[[ Tools for  brute sweep of IPv6 Addrss
 
-	Tools for  brute sweep of IPv6 Addrss
-	
 	There are two  differents methods: 
 	1 - Strings  representing bits  
 	2- 4 numbers of 32 bits
@@ -326,6 +324,7 @@ local Sumador128bits = function ( A, B, Cin)
 	return Sstring,  tostring(Cout)
 end
 
+
 --- This function will always return the next inmediatly  IPv6
 -- address. This work only with String format.
 -- @args	IPv6Address	A String IPv6 address  X:X:X:X:X:X:X:X
@@ -399,6 +398,11 @@ local GetNext_AddressIPv6_4Structure = function(IPv6Address, Prefix)
 	
 	return Next
 end
+
+--[[ Global Functions
+
+	Those are the global function that can be called by any script.
+--]]
 
 
 ---

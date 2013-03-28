@@ -12,7 +12,7 @@ description=[[
  one  it's going to use  the first valid IPv6 prefix from the Client .
  
  The script run at pre-scanning phase and script phase (The first for 
- create tenttive low-bytes address and the second for put the living
+ create tentative low-bytes address and the second for put the living
  nodes on the list of discovered nodes).
 ]]
 
@@ -54,8 +54,9 @@ description=[[
 
 
 --
--- Version 0.5
--- Created 26/02/2013 - v0.1 - created by Ing. Raul Fuentes <patrik@cqure.net>
+-- Version 1.0
+-- 	Update 27/03/2013	- v 1.0 
+-- 	Created 26/02/2013	- v0.1 - created by Ing. Raul Fuentes <ra.fuentess.sam@gmail.com>
 --
 
 author = "Raul Fuentes"
@@ -228,7 +229,6 @@ local PreScanning = function()
 	-- 2: Provistos por el usuario mediante un argumento
 	-- 3?: A partir de la interfaz de red del usuario  (Aunque solo sirve local)
 	
-	--PrefijosUniversales = nmap.registry.itsismx.PrefixesKnown 
 	
 	PrefijosUniversales = stdnse.get_script_args('nmap.registry.itsismx.PrefixesKnown ')
 	PrefijosUsuario, NumBits = stdnse.get_script_args('itsismx-subnet', 'itsismx-LowByt.nbits')
@@ -305,16 +305,21 @@ local HostScanning = function( host)
 	stdnse.print_debug(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 			": Begining the Host-scanning results... "    )
 
-
-	-- Falta aniadir un handler aqui.
-	aux = nmap.registry.itsismx[SCRIPT_NAME]
-	
-	if aux == nil then 
+	-- We are going to be sure don't do stupid thing on wrong register (Because we don't have
+	-- handlres for working with registers)
+	if nmap.registry.itsismx == nil then 
 		tSalida.Error = "You must first initialize the global register Itsismx (There is a global function for that)"
 		return false, tSalida
 	end
+	
+	aux = nmap.registry.itsismx[SCRIPT_NAME]
+	if aux == nil then 
+		
+		tSalida.Error = "The global register Itsismx wasn't initialzed correctly (There is a global function for that)"
+		return false, tSalida
+	end
 
-	--We us the aux for be able to add a new element to the table
+	--We use the aux for be able to add a new element to the table
 	aux[#aux +1] = host.ip
 	nmap.registry.itsismx[SCRIPT_NAME] = aux
 	table.insert(tSalida.Nodos,host.ip)
@@ -323,8 +328,7 @@ local HostScanning = function( host)
 end
 
 ---
--- Pracicamente solo nos interesa que tengamos IPv6 y que exista una tabla
--- hosts.
+-- The script need to be working with IPv6
 prerule = function() return ( nmap.address_family() == "inet6") end
 ---
 -- This rule actually can do almost everything we need. "host" will be each host that is up
@@ -369,7 +373,7 @@ end
 action = function(host)
 
 	
-	--Variables utilizadas para generar el reporte de salida
+	--Vars for created the final report
 	local tOutput = {} 
 	tOutput = stdnse.output_table()
 	local bExito = false
