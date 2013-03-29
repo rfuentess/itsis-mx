@@ -1,6 +1,7 @@
 Repositorio de código fuente de tesis.
 
 Historia de las versiones: 
+	V 0.2.1	 -  LowByte completado, Mapt 4 to 6 Completado.
 	v 0.1.1  -  Primer bloque de codigo Low-Byte  listo para ser probado.
 
 Nmap

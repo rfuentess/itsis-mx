@@ -515,8 +515,8 @@ end
 	elseif  Global[Registro] == nil then --- WE MUST BE CAREFUL Don't overwritte other registry
 		nmap.registry.itsismx[Registro]  = {}
 		
-	end
-	
+	end -- This Ok, a previous script, or maybe a previous run of our script had already  create
+		-- the registry, we don-t want to destroy the current data.
 	-- local key, elemento 
 	-- for key, elemento in pairs(nmap.registry.itsismx) do
 		-- print(key, elemento)

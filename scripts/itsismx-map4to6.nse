@@ -4,7 +4,7 @@ local stdnse = require "stdnse"
 local table = require "table"
 local target = require "target"
 local itsismx = require "itsismx"
-
+local tab = require "tab"
 
 description=[[
   This script run a typcal Nmap discovery of hosts  on IPv4   but for each host up will 
@@ -26,7 +26,14 @@ description=[[
 -- nmap -6 --script itsismx-Map4to6 --script-args newtargets,itsismx.Map4t6.IPv4Hosts=X.X.X.X
 --
 -- @output
+-- Pre-scan script results:
+-- | itsismx-map4to6:
+-- |_  itsismx-map4to6.prerule:  Were added 18 nodes to the host scan phase
 
+-- Host script results:
+-- | itsismx-map4to6:
+-- | Host online - Mapped IPv4 to IPv6
+-- |_  2001:db8:c0ca:1::9d9f:64e1
 
 -- nmap.registry.itsismx.Map4t6 Is a global Registry (the final objective of this script)
 --   will have all the valid IPv6 address discovered with this Script
@@ -44,7 +51,8 @@ description=[[
 
 
 --
--- Version 0.1
+-- Version 1.0
+--	Update 29/03/2013	- v 1.0  Functional script 
 -- 	Created 28/03/2013	- v0.1 - created by Ing. Raul Fuentes <ra.fuentess.sam@gmail.com>
 --
 
@@ -196,7 +204,7 @@ local Prescanning = function ()
 				
 			IPv6_Add, IPv6_Prefix  = Extract_IPv6_Add_Prefix(IPv6User)
 			IPv6Host, sError = From_4_to_6(IPv6_Add, IPv6_Prefix,IPv4Subnets )
-			print(" So...")
+			
 			if ( sError ~= nil) then
 				--print("Problema  detectado")
 				stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..  " ERROR: One IPv6 subnet wasnt translate") 
@@ -238,7 +246,7 @@ end
 -- Very simpe action is this one. We add each one of the hosts in the final register.
 local Hostscanning = function (host) 
 	
-	local tSalida = { Nodos={}, Error=""}
+	local tSalida = { Nodos=nil, Error=""}
 	local aux
 	
 	--Each host is too much!
@@ -251,17 +259,20 @@ local Hostscanning = function (host)
 		tSalida.Error = "You must first initialize the global register Itsismx (There is a global function for that)"
 		return false, tSalida
 	end
-	aux = nmap.registry.itsismx[SCRIPT_NAME]
+	aux = nmap.registry.itsismx.Map4t6
 	if aux == nil then 
-		
 		tSalida.Error = "The global register Itsismx wasn't initialzed correctly (There is a global function for that)"
 		return false, tSalida
 	end
 	
 	--We use the aux for be able to add a new element to the table
 	aux[#aux +1] = host.ip
-	nmap.registry.itsismx[SCRIPT_NAME] = aux
-	table.insert(tSalida.Nodos,host.ip)
+	nmap.registry.itsismx.Map4t6 = aux
+	
+	-- This rule ALWAY IS ONE ELEMENT!
+	tSalida.Nodos = host.ip
+	
+	
 	
 	return true, tSalida
 
@@ -301,51 +312,63 @@ action = function(host)
 	local tOutput = stdnse.output_table()
 	local bExito = false
 	local tSalida =  { Nodos={}, Error=""}
-	local   sHostsPre, bTarget, sTarget
-	
+	local  sHostsPre, bTarget, sTarget
+	local Nodes = {} -- Is a Auxiliar 
 	tOutput.Nodes = {}  
-	itsismx.Registro_Global_Inicializar(SCRIPT_NAME) -- We prepare our work!
+	itsismx.Registro_Global_Inicializar("Map4t6") -- We prepare our work!
 	
 	-- The aciton is divided in two parts: Pre-scanning and host scanning.
 	if ( SCRIPT_TYPE== "prerule" ) then
 		bExito , tSalida = Prescanning()
 		-- Now we adapt the exit to tOutput and add the hosts to the target!
-		tOutput.Error = tSalida.Error 
+		tOutput.warning = tSalida.Error 
 		
 		if bExito then
-			print("Epale")
-			
 			for _,  sHostsPre in ipairs(tSalida.Nodos) do
 				bTarget, sTarget = target.add(sHostsPre)
 				if bTarget then --We add it!
-					print("Que pasa?" .. sHostsPre)
-					table.insert(tOutput.Nodes, sHostsPre ) 
-					--tOutput[#+1] =  -- To the report
+
+					--IF everything is well tSalida.Nodos & Nodos are the 
+					--same size BUT we must be sure the nodes are added to 
+					-- the host scan phase.
+					table.insert(Nodes, sHostsPre)
+					
 				else 
-					tOutput.Error = tOutput.Error .. " \n" .. sTarget
+					tOutput.warning = tOutput.warning .. " \n" .. sTarget
 				end
 			end
 		
 			--Final report of the Debug Lvl of Prescanning
 			stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-								" Total Mapped IPv4 to IPv6 added to the scan:" ..  #tOutput.Nodes )
-			nmap.registry.map6t4_PreHost = tOutput.Nodes -- We add those to the global registry
-			print("Total elementos reportados: " .. #tOutput.Nodes)
-			table.insert(tOutput, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ":  Were added " .. #tOutput.Nodes .. " nodes to the scan" )
-			
-			for key, elemento in pairs(tOutput) do print("Key: " .. key ) end
+								" Temptative Mapped IPv4 to IPv6 added to the scan:" ..  #tSalida.Nodos .. 
+								"\n Succesful Mapped IPv4 to IPv6 added to the scan:" ..  #Nodes )
+			-- We add those to the global registry
+			-- We don't add those nodes to the standard exit BECAUSE ARE TEMPTATIVE ADDRESS
+			nmap.registry.map6t4_PreHost = Nodes 
+			table.insert(tOutput, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ":  Were added " .. #Nodes .. " nodes to the host scan phase" )
+
 		end
 	end
 	
 	if ( SCRIPT_TYPE== "hostrule" ) then
 		 
 		 bExito , tSalida = Hostscanning(host)
-		 tOutput.Error = tSalida.Error
-		 tOutput.Nodes  = {}
-		 tOutput.Nodes = tSalida.Nodos
+		 tOutput.warning = tSalida.Error
+		 
+
+		 if ( bExito ~= true) then
+			stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+								" Error: " .. tSalida.Error)
+		 end
+		 
+		 
+		 tOutput.name = "Host online - Mapped IPv4 to IPv6"
+		 --tSalida.Nodos is one single entry not a table (Hostscanning trick)
+		table.insert(tOutput,tSalida.Nodos) 
+		 
 	end
 
-	--return stdnse.format_output(bExito, tOutput);	
-	return  tOutput
+	return stdnse.format_output(bExito, tOutput);	
+	--return  tOutput
 	
 end

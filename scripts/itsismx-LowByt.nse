@@ -179,6 +179,8 @@ local IPv6_GetLowBytesHost = function( IPv6PRefix , NBits)
 					end
 				end
 				
+				
+				
 				Hosts_Subred = IPv6_Create_HostsRange(SubRed,Prefijo)
 
 				stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. "\t Subnet/Prefix: " ..
@@ -312,7 +314,7 @@ local HostScanning = function( host)
 		return false, tSalida
 	end
 	
-	aux = nmap.registry.itsismx[SCRIPT_NAME]
+	aux = nmap.registry.itsismx.LowByt
 	if aux == nil then 
 		
 		tSalida.Error = "The global register Itsismx wasn't initialzed correctly (There is a global function for that)"
@@ -321,7 +323,7 @@ local HostScanning = function( host)
 
 	--We use the aux for be able to add a new element to the table
 	aux[#aux +1] = host.ip
-	nmap.registry.itsismx[SCRIPT_NAME] = aux
+	nmap.registry.itsismx.LowByt = aux
 	table.insert(tSalida.Nodos,host.ip)
 	
 	return true, tSalida
@@ -380,7 +382,7 @@ action = function(host)
 	local tSalida =  { Nodos={}, Error=""}
 	local  bHostsPre, sHostsPre 
 	
-	itsismx.Registro_Global_Inicializar(SCRIPT_NAME)
+	itsismx.Registro_Global_Inicializar("LowByt")
 	
 	
 	-- Lo mas sano es irnos por separar las acciones de cada fase.
@@ -400,11 +402,15 @@ action = function(host)
 
 	
 	-- Poblamos la tabla de salida 
+	tOutput["warning"] = ""
+	tOutput["name"] = ""
 	if not bExito then 
 		table.insert(tOutput, tSalida.Error)
 	else -- Hay que recordar que esta tabla la comparten dos Fases de Nmap...
 		
 		if SCRIPT_TYPE== "prerule"  then	-- We add the to the  host phase scanning.
+			tOutput["name"] = "LowByte: Pre-rule"
+			
 			bAdding, sHostsPre = target.add(table.unpack(tSalida.Nodos) )
 			if bAdding == true then
 				
@@ -415,25 +421,25 @@ action = function(host)
 				
 				
 				if #tSalida.Error ~= 0 then 
-					tOutput.Error =  SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ":WARNING: There had been some lesser incovenient." .. 
+					tOutput.warning =  SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ":WARNING: There had been some lesser incovenient." .. 
 							" You can use -d[d] for see the problem " 
 				else 
-					tOutput.Error = SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ":WARNING: Not all the nodes were able to place for the scanning pahe." .. 
+					tOutput.warning = SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ":WARNING: Not all the nodes were able to place for the scanning pahe." .. 
 							" Only " .. sHostsPre  
 				end
 				stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. "  finished."  )
 			else
 				bExito = false
-				tOutput.Error = SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ": " .. sHostsPre
+				tOutput.warning = SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ": " .. sHostsPre
 			end 
 		
 	
 		elseif SCRIPT_TYPE== "hostrule" then -- Now we display the targets!
-				
+				tOutput["name"] = "Host online - Low-Byte "
 				table.insert( tOutput , tSalida.Nodos  ) 
 			
 				if (#tSalida.Error == 0 ) then
-					tOutput.Error = tSalida.Error
+					tOutput.warning = tSalida.Error
 				end
 				
 				
