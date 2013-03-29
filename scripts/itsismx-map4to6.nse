@@ -7,20 +7,18 @@ local itsismx = require "itsismx"
 
 
 description=[[
-  This script run a typcal Nmap discovery of hosts  on IPv4 
-  but for each host up will try to map to IPv6, the IPv6 subnet 
-  must had be discovery by a previous script or provided by the .
+  This script run a typcal Nmap discovery of hosts  on IPv4   but for each host up will 
+  try to map to IPv6, the IPv6 subnet   must had be discovery by a previous script 
+  or provided by the user .
  
-  There is a problem on the nmap 6.25 architecture:  OR only get IPv4
-  or only get IPv6 by execution. This mean we can't check first for 
-  the IPv4 address to be up so, the user must provided the IPv4 hosts
- to check. I choice to believe the user will first to check for valid 
- IPv4 host and then pass those using a filetext as argument to the script
- (The reason, normal scan are better than NSE for doing that)
+  There is a problem on the nmap 6.25 architecture:  OR only get IPv4   or only get IPv6 
+  by execution. This mean we can't check first for   the IPv4 address to be up so, the 
+  user must provided the IPv4 hosts   to check. We have two way to do it: The User provide 
+  IPv4 hosts address   or provide IPv4 Subnet Address ( X.X.X.X/YY ).
  
-  The script run at pre-scanning phase and script phase (The first for 
-  create tentative 4to6 address and the second for put the living
-  nodes on the list of discovered nodes).
+  The script run at pre-scanning phase and script phase (The first for create tentative 
+  4to6 address and the second for put the living nodes on the list of discovered nodes).
+  
 ]]
 
 ---
@@ -37,8 +35,9 @@ description=[[
 
 -- @args itsismx.Map4t6.IPv4Hosts This must have at least one IPv4 Host  for the script
 --	 be able to work (Ex. 192.168.1.1 or { 192.168.1.1, 192.168.2.2 } ) or 
---   The best element is use Nmap for explore the IPv4 address first and then add the 
---   discovered nodes to one single file.
+--   Subnet Addres  (Ex. 192.168.1.0/24 or { 192.168.1.0/24, 192.168.2.0/24 } )
+--   Personally  I consider best idea use previous Nmap execution for get the IPv4 address 
+--	but we can do a simple brute detection if the user consider need it.
 -- @args itsismx-subnet IT's table/single  IPv6 address with prefix
 --	   (Ex. 2001:db8:c0ca::/48 or { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 } )
 -- @args newtargets  MANDATORY Need for the host-scaning to succes 
@@ -62,25 +61,79 @@ categories = {"broadcast", "safe"}
 -- @args	IPv6_Prefix		A IPv6 Prefix, for this we are waiting 64-96
 --					        more will cancel the conversion because there 
 --							are not more space for  Map 4-to-6
+-- @args	IPv4SHosts		A IPv4 String can be: X.X.X.X or X.X.X.X/YY
 -- @return	Table		A table of IPv6 hosts (NO prefix) 
 -- @return	Error		A warning if something happened. ( Nil if everything was fine)
 local From_4_to_6  = function (IPv6_Network, IPv6_Prefix, IPv4SHosts )
 	local sError, Listado = nil, {}
 	local _ , Host -- _ Can give problem 
-	local sBin6, sBin4
+	local sBin6, sBin4, tTabla = nil, nil, {}
 	
 	--We check if the PRefix are OK, anything less than 96 is fine 
 	if IPv6_Prefix > 96 then 
 		return  Listado , " The IPv6 subnet: "  .. IPv6_Network .. "/" .. IPv6_Prefix ..
 						" can't support a direct Mapping 4 to 6." 
 	end
-	sBin6 = ip_to_bin(IPv6_Network)
-	for _ ,  Host in ipairs(IPv4SHosts) do 
 	
-			sBin4 = ip_to_bin(Host)
-			Host =  sBin6:sub(1,96) ..  sBin4
-			print (Host)
-			table.insert(Listado, bin_to_ip(host))
+	sBin6,sError = ipOps.ip_to_bin(IPv6_Network) -- We don't left dangerous operation
+	if sBin6 == nil then 
+		return Listado, sError
+	end
+	
+	--Ok, we have two options: String or Table... the bes thing...  make string Table 
+	-- and don't add more lines doing the same!
+	if type(IPv4SHosts) ==  "table" then  
+		tTabla = IPv4SHosts
+	else
+		table.insert(tTabla, IPv4SHosts)
+	end
+	
+	stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				".Map4to6: " .. " Total IPv4 objects to analyze: " ..   #tTabla  )
+	
+	for _ ,  Host in ipairs(tTabla) do 
+			
+			
+			stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+						".Map4to6: " .. " IPv4 Object: " ..   Host  )
+						
+			sBin4, sError = ipOps.ip_to_bin(Host) -- We have two options .. 
+			if ( sBin4 == nil ) then 
+				
+				-- Posible  X.X.X.X/YY
+				local  IPv4_First, IPv4_Last, IPv4_Next, SErr2, IPAux
+				IPv4_First, IPv4_Last, SErr2 = ipOps.get_ips_from_range( Host )
+				
+				if (IPv4_First ~= nil and IPv4_Last ~= nil ) then -- Sweep Subnet,  we must do
+					
+					-- (BUT we must avoid the first  IPv4 adress as is invalid
+					IPv4_Next = itsismx.GetNext_AddressIPv4(IPv4_First)
+					while  ipOps.ip_in_range( IPv4_Next ,Host)  do
+						-- Another tricky thing... We must avoid placing the last (Broadcast)!
+						if ipOps.compare_ip (IPv4_Next, "lt", IPv4_Last ) then
+							
+							IPAux = sBin6:sub(1,96) ..   ipOps.ip_to_bin(IPv4_Next)
+							IPAux = ipOps.bin_to_ip(IPAux)
+							stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+									".Map4to6: " .. " \t IPv6 address: " ..   IPAux  )
+							table.insert(Listado, IPAux )
+						end
+						IPv4_Next = itsismx.GetNext_AddressIPv4(IPv4_Next)
+					end
+						
+				else -- This entry of host IS WRONG! WRONG!
+					return Listado, "At least one  Host/Subnet was wrong passed: " .. Host
+				end
+			
+			else  -- Format: X.X.X.X
+				Host =  sBin6:sub(1,96) ..  sBin4
+				Host = ipOps.bin_to_ip(Host)
+				stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+									".Map4to6: " .. " \t IPv6 address: " ..   Host  )
+				
+				table.insert(Listado, Host)
+			
+			end
 	end
 	
 	return Listado
@@ -92,8 +145,10 @@ local Prescanning = function ()
 	local tSalida = { Nodos={}, Error=""}
 	local IPv6_Subnet , IPv6_Add, IPv6_Prefix
 	local IPv6Host, sError = {}
-	local IPv4Hosts, IPv6User, IPv6Knowns  = stdnse.get_script_args("itsismx.Map4t6.IPv4Nets", 
-	local iIndex															"itsismx-subnet", "itsismx.PrefixesKnown" )
+	local IPv4Subnets, IPv6User   = stdnse.get_script_args("itsismx.Map4t6.IPv4Hosts", 
+																"itsismx-subnet" )
+	local IPv6Knowns = nmap.registry.itsismx.PrefixesKnown
+	local iIndex
 	stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 			": Begining the Pre-scanning work... "    )
 																	
@@ -105,7 +160,8 @@ local Prescanning = function ()
 		return bSalida, tSalida
 	end
 
-	-- Now we need to have based IPv6 Prefix, the most important is the previous known
+	-- Now we need to have based IPv6 Prefix, the most important is the previous known but we have 
+	-- a last-option too . 
 	if IPv6User == nil and IPv6Knowns == nil then 
 		tSalida[Error] = "There is not IPv6 subnets to try to scan!. You can run a script for discovering or adding your own" ..  
 							"  with the arg: itsismx.PrefixesKnown."
@@ -134,23 +190,33 @@ local Prescanning = function ()
 	
 	if IPv6User ~= nil then  -- We got tww options with this.
 		if   type(IPv6User) ==  "string" then 
+		
+			stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				"	Number of Prefixes provided by the user:  1"     )
+				
 			IPv6_Add, IPv6_Prefix  = Extract_IPv6_Add_Prefix(IPv6User)
 			IPv6Host, sError = From_4_to_6(IPv6_Add, IPv6_Prefix,IPv4Subnets )
+			print(" So...")
 			if ( sError ~= nil) then
+				--print("Problema  detectado")
 				stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..  " ERROR: One IPv6 subnet wasnt translate") 
-				tSalida[Error] = tSalida[Error] .. "\n" ..  sError
+				tSalida["Error"] = tSalida["Error"] .. "\n" ..  sError
 			else -- We need to concatenate the new nodes 
 				for iIndex = 1 , #IPv6Host do 
 					table.insert(tSalida.Nodos, IPv6Host[iIndex])
 				end
 			end
 		elseif type(IPv6User) ==  "table" then 
+			stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				"	Number of Prefixes provided by the user: " .. #IPv6User    )
+			
 			for _ , IPv6_Subnet in ipairs(IPv6User) do --We need to extract the data
-				IPv6_Add, IPv6_Prefix  = Extract_IPv6_Add_Prefix(IPv6_Subnet) --  We break the data 
+				IPv6_Add, IPv6_Prefix  = itsismx.Extract_IPv6_Add_Prefix(IPv6_Subnet) --  We break the data 
 				IPv6Host, sError = From_4_to_6(IPv6_Add, IPv6_Prefix,IPv4Subnets )
 				if ( sError ~= nil) then
+					--print("Problema  detectado")
 					stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..  " ERROR: One IPv6 subnet wasnt translate") 
-					tSalida[Error] = tSalida[Error] .. "\n" ..  sError
+					tSalida["Error"] = tSalida["Error"] .. "\n" ..  sError
 				else -- We need to concatenate the new nodes 
 					for iIndex = 1 , #IPv6Host do 
 						table.insert(tSalida.Nodos, IPv6Host[iIndex])
@@ -164,9 +230,8 @@ local Prescanning = function ()
 		
 	
 	end
-   --if   type(PrefijosUsuario) ==  "string"  and   #PrefijosUsuario > 0  then end
 			
-	return bSalida, tSalida		
+	return true, tSalida	 -- We got to this point everything was fine (Or don't crash)!	
 end
 
 --- 
@@ -230,23 +295,57 @@ end
 
 action = function(host)
 
+
 	--Vars for created the final report
-	local tOutput = {} 
-	tOutput = stdnse.output_table()
+	
+	local tOutput = stdnse.output_table()
 	local bExito = false
 	local tSalida =  { Nodos={}, Error=""}
-	local  bHostsPre, sHostsPre 
+	local   sHostsPre, bTarget, sTarget
 	
+	tOutput.Nodes = {}  
 	itsismx.Registro_Global_Inicializar(SCRIPT_NAME) -- We prepare our work!
 	
 	-- The aciton is divided in two parts: Pre-scanning and host scanning.
 	if ( SCRIPT_TYPE== "prerule" ) then
 		bExito , tSalida = Prescanning()
+		-- Now we adapt the exit to tOutput and add the hosts to the target!
+		tOutput.Error = tSalida.Error 
+		
+		if bExito then
+			print("Epale")
+			
+			for _,  sHostsPre in ipairs(tSalida.Nodos) do
+				bTarget, sTarget = target.add(sHostsPre)
+				if bTarget then --We add it!
+					print("Que pasa?" .. sHostsPre)
+					table.insert(tOutput.Nodes, sHostsPre ) 
+					--tOutput[#+1] =  -- To the report
+				else 
+					tOutput.Error = tOutput.Error .. " \n" .. sTarget
+				end
+			end
+		
+			--Final report of the Debug Lvl of Prescanning
+			stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+								" Total Mapped IPv4 to IPv6 added to the scan:" ..  #tOutput.Nodes )
+			nmap.registry.map6t4_PreHost = tOutput.Nodes -- We add those to the global registry
+			print("Total elementos reportados: " .. #tOutput.Nodes)
+			table.insert(tOutput, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ":  Were added " .. #tOutput.Nodes .. " nodes to the scan" )
+			
+			for key, elemento in pairs(tOutput) do print("Key: " .. key ) end
+		end
 	end
 	
 	if ( SCRIPT_TYPE== "hostrule" ) then
-		bExito , tSalida = Hostscanning(host)
+		 
+		 bExito , tSalida = Hostscanning(host)
+		 tOutput.Error = tSalida.Error
+		 tOutput.Nodes  = {}
+		 tOutput.Nodes = tSalida.Nodos
 	end
 
-	return stdnse.format_output(bExito, tOutput);	
+	--return stdnse.format_output(bExito, tOutput);	
+	return  tOutput
+	
 end

@@ -415,10 +415,14 @@ end
 -- the prefix its big can be a waste, that is why  there is a option 
 -- for reduce the number of bits to sum (String case only). 
 -- @args	IPv6Address	A String IPv6 address  X:X:X:X:X:X:X:X
--- @args	Prefix	Optional Prefix. If it-s provided the function 
+-- @args	(Optional) Prefix. If it-s provided the function 
 --			 will check to do sum with lesser bits (64, 32, 16 or 8)
--- @args 	IPv6_Mech_Operator If true will use the aproach with 
---			 structures if false
+--			 but only work if we are using "String"
+-- @args 	IPv6_Mech_Operator A string which represent the mechanis 
+--			 for calculating the next IPv6 Address. Values:
+--				string 	- (Default) use pseudo binary operations 
+--				number	- Divide the IPv6 in 4 numbers of 32 bits 
+--						  (Mathematical operations)
 -- @return String Formated full IPv6 X:X:X:X:X:X:X:X)
  GetNext_AddressIPv6 = function(IPv6Address, Prefix, IPv6_Mech_Operator)
 
@@ -448,6 +452,26 @@ end
 	return ipOps.bin_to_ip(Next)
 end 
 
+---
+--  This function will always return the next inmediatly  IPv4 address.
+--   We use only Dword operations for calculating so, there is no more options for this.  
+GetNext_AddressIPv4 = function (IPv4ddress) 
+	
+	local Next, aux, Octetos
+	local d,c,b,a
+	local IPN = ipOps.todword( IPv4ddress ) + 1
+	
+	aux = ipOps.fromdword (IPN)
+	-- Oddly Nmap 6.25 change the octets order instead of  A.B.C.D return 
+	-- D.C.B.A
+	 Octetos = ipOps.get_parts_as_number(aux) 
+	if Octetos then d,c,b,a = table.unpack( Octetos ) end
+	
+	Next = a .. "." .. b .. "." .. c .. "."  .. d 
+			
+	return Next
+
+end
 
 ---
 -- Receive X:X:X::/YY and return two separated fields: 
