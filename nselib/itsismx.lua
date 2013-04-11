@@ -524,5 +524,22 @@ end
 		
 end
 
+---
+-- Convert Decimal number to Hexadecimal 
+-- This piece of code was taken from:
+-- http://snipplr.com/view/13086/
+-- @args	Number		A Lua number format
+-- @return	String		String representing Hexadecimal value 
+function DecToHex(Number)
+    local hexstr = '0123456789abcdef'
+    local s = ''
+    while Number > 0 do
+        local mod = math.fmod(Number, 16)
+        s = string.sub(hexstr, mod+1, mod+1) .. s
+        Number = math.floor(Number / 16)
+    end
+    if s == '' then s = '0' end
+    return s
+end
 
 return _ENV;
