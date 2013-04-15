@@ -246,7 +246,7 @@ local PreScanning = function()
 	end
 	
 	
-	-- Por defecto trabajamos un byte
+	-- By default we work with a Byte
 	if NumBits == nil then  
 		NumBits = 8
 	elseif tonumber(NumBits) < 2 then 

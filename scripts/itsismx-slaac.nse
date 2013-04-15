@@ -1,11 +1,12 @@
 local ipOps = require "ipOps"
 local nmap = require "nmap"
 local stdnse = require "stdnse"
-local table = require "table"
 local target = require "target"
 local itsismx = require "itsismx"
 local datafiles = require "datafiles"
 local bin = require "bin"
+local table = require "table"
+local math = require "math"
 
 description=[[
   
@@ -31,27 +32,98 @@ description=[[
 -- @args newtargets  MANDATORY Need for the host-scaning to succes 
 -- @args vendors	 (Optional) One or more vendors of NIC if there is no one 
 --					  	the script will use "DELL" (arbytrary choice)
-
+-- @args nbits		Number
+-- @args compute	String  Will be the way to compute the last 24 bits.
+--					 (Default) random	- Will calculate random address. Don't use if 
+--										  you plan to sweep more than 20 bits (even less) 
+--							   brute 	- Will make a full sweep of the first IPv6 
+--										  address to the last of the bits provided.
+-- @args itsismx-subnet 			IT's table/single  IPv6 address with prefix
+--	   (Ex. 2001:db8:c0ca::/48 or { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 } )
+-- @args itsismx-IPv6ExMechanism 	Only care if you are using brute computing
+--      Nmap don't do math operations with IPv6  because the big value of those address. 
+--		We use own methods which are: 
+--			"number"	- 4 Numbers of 32 bits (Mathematical operations)
+--			"sring"		- (Default) 128 Characters on string  (Pseudo Boolean operations)
 --
 -- Version 0.1
 --	
 -- 	Created 10/04/2013	- v0.1 - created by Ing. Raul Fuentes <ra.fuentess.sam@gmail.com>
 --
 
-local CreateRange = function ( IPv6Prefix, HighMac, Metodologia ) 
+
+local Brute_Range = function( IPv6Base, nBits ) 
+	local TheLast, TheNext, err
+	local Hosts, Prefix  = {},0
+	-- This can be affected by itsismx-IPv6ExMechanism
+	local IPv6ExMechanism = stdnse.get_script_args( "itsismx-IPv6ExMechanism" )
 	
-	-- Lo primero, creamos la parte estatica de 88 bits
-	local IPv6Base = ipOps.expand_ip(IPv6Prefix)
+	--First, how many bits we are going to work ?
+	if nBits == nil then 
+		Prefix =  128 -11
+	elseif nBits > 2 and  nBits <= 24 then
+		Prefix =  128 - nBits
+	else 						-- Something wrong, we must be careful
+		return nil
+	end 
 	
-	-- Format to:   XXXX:XXXX:XXXX:XXXX:MMMM:MMFF:FE??:????
-	IPv6Base = IPv6Base:sub(1,64) .. HighMac:sub(1,4) .. ":" .. HighMac:sub(5,6) .. "ff:fe"
+	print("\t\t  Preparativos:" ..  IPv6Base .. "00:0/" .. Prefix )
+	--  2001:db8:c0ca:0:0:0:0:0021c:23ff:fe00:0
+	TheNext, TheLast, err = ipOps.get_ips_from_range(IPv6Base .. "00:0000/" .. Prefix)
 	
+	print("\t\t  Preparativos:" ..  err )
+	
+	stdnse.print_debug(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+					".Vendors.Address: " .. " will be calculated 2 ^ " .. 
+					nBits  .. " hosts using brute values for: " .. IPv6Base)
+	
+	-- Now the hard part...   numbers in NSE (LUA 5.2) are limited to 10^14..
+	-- So... we can0t do the easy life to pass to number and do the maths there...
+	-- There are extras libraries for Lua 5.2 but aren't part of Nmap project (yet)
+	-- So, we use our special mechanism.
+	repeat  
+		table.insert(Hosts,TheNext)
+		-- Testing local Number_Instead_String = false
+		TheNext = itsismx.GetNext_AddressIPv6(TheNext,Prefix, IPv6ExMechanism)
+		print("\t\t WAJU: " .. IPv6Base .. hHost   )
+	until not ipOps.ip_in_range(TheNext, IPv6Base .. "/" .. Prefix)
+	return Hosts
+end
+
+---
+-- This function will be getting the first 88 bits  and will generate 
+-- the last 24 bits will be calculated using randome values.
+-- 	By default we are going to work  11 bits ( 2 ^ 11  ) for   the total 
+--  host. That is: Around 2,048 nodes that are only  00.122% of the possible range.
+-- The user can increase the number to the 24 bit BUT Will take A LOT OF RESOURCES
+-- and TIME because. 
+-- 	@args IPv6Base 	String	First 88 bits 
+--	@args nBits		Number of bits to use (Default: 11 )
+-- 	@returns 		List  of IPv6 address host ( Nil if there is a error)
+local Random_Range = function ( IPv6Base, nBits ) 
+
 	-- WE need begin to create the ranges but... There is a lot way to do it ... 
 	-- The first one is going to be random values In a number of 24 bits
 	local  MaxNodos =  10
+	
+	--First, how many bits we are going to work ?
+	if nBits == nil then 
+		nBits = 11
+		MaxNodos =  math.pow(2, nBits)
+	elseif nBits > 2 and  nBits <= 24 then
+		MaxNodos =  math.pow(2, nBits)
+	else 						-- Something wrong, we must be careful
+		return nil
+	end 
+	
 	local iAux, iIndex, _, iValor, bUnico, hHost
 	local  Hosts, Numeros = {}, {}
 	--print("\t Random for:" .. IPv6Base)
+
+	stdnse.print_debug(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+					".Vendors.Address: " .. " will be calculated 2 ^ " .. 
+					nBits  .. " hosts using random values for: " .. IPv6Base)
+	
 	for iIndex = 1, MaxNodos do 
 		iAux = math.random( 16777216 )  --Remember this a C/C++ Random, isn-t better than that!
 		
@@ -60,13 +132,13 @@ local CreateRange = function ( IPv6Prefix, HighMac, Metodologia )
 		for _ , iValor  in ipairs(Numeros ) do
 			if iValor == iAux then 
 				bUnico= false
-				print(print("\t\t Chale :" ))
+				--print(print("\t\t Chale :" ))
 				break
 			end
 		end
 		--print("\t\t iIndex :" .. iIndex .. " " )
 		if bUnico ~= true then
-			iIndex = iIndex - 1
+			iIndex = iIndex - 1	-- We are 
 		else 
 			table.insert(Numeros, iAux)
 			hHost = itsismx.DecToHex(iAux)
@@ -77,7 +149,7 @@ local CreateRange = function ( IPv6Prefix, HighMac, Metodologia )
 			end
 			hHost = hHost:sub(1,2) .. ":" .. hHost:sub(3,6) 
 			table.insert( Hosts, IPv6Base .. hHost)
-			print("\t\t WAJU: " .. IPv6Base .. hHost   )
+			--print("\t\t WAJU: " .. IPv6Base .. hHost   )
 		end
 		
 	end
@@ -89,6 +161,8 @@ local getSlaacCandidates = function ( IPv6Prefix , HighPart )
 	
 	local hosts, sError ={}, nil
 	local _, OIED, hexadecimal, bitsAlto
+	local Metodo, NumBits = stdnse.get_script_args("itsismx.slaac.compute", "itsismx.slaac.nbits")
+	
 	-- We have some options  there, we can calculate Random hosts  or brute force
 	-- We can work 8 - 24 bits ( 256 - 16 millions of hosts  )  
 	-- By default will be Random with 12 bits ( 4,096 random hosts )
@@ -109,9 +183,19 @@ local getSlaacCandidates = function ( IPv6Prefix , HighPart )
 	-- (Actually the general values  come as a string XXXXXX  so, 
 	-- any longer 6 character will be "Special"
 	
-	-- We begin with the OIED candidates, and for each group we'll try to add them 
-	-- to our IPv6 subnets
+	if NumBits == nil then  
+		 -- Actually this is a little redundant but better a strict control than nothing
+		 NumBits = 11  
+	elseif tonumber(NumBits) < 2 then 
+		NumBits = 2
+		sError = "Was add a very small value to nbits. Was fixed to 2"
+	elseif tonumber(NumBits) > 24 then 
+		NumBits = 24
+		sError = "Was add a very high value to nbits. Was fixed to 24"
+	end
 	
+	-- We begin with the OIED candidates, and for each group we'll try to add them 
+	-- to our IPv6 subnets	
 	for _ , OIED in ipairs(HighPart) do 
 	
 		if #OIED == 6 then -- Our clasic case! 
@@ -127,7 +211,23 @@ local getSlaacCandidates = function ( IPv6Prefix , HighPart )
 			
 			-- We begin to create the  hosts ranges! We already have the first 88 bits
 			-- Sp we only need to create the last 24
-			CreateRange(IPv6Prefix, bitsAlto )
+			-- Lo primero, creamos la parte estatica de 88 bits
+			local IPv6Base = ipOps.expand_ip(IPv6Prefix)
+	
+			-- Format to:   XXXX:XXXX:XXXX:XXXX:MMMM:MMFF:FE??:????
+			IPv6Base = IPv6Base:sub(1,64) .. bitsAlto:sub(1,4) .. ":" .. bitsAlto:sub(5,6) .. "ff:fe"
+			
+			-- Random or Brute mechanism?
+			if Metodo == nil then
+				--Random_Range(IPv6Base,NumBits )
+				Brute_Range(IPv6Base,8 )
+			elseif Metodo == "random" then
+				Random_Range(IPv6Base,NumBits )
+			elseif Metodo == "brute" then
+				Brute_Range(IPv6Base,NumBits )
+			else	-- ERROR!
+				return nil, "ERROR: The compute mechanism is incorrect: " .. Metodo
+			end
 			
 		end
 	end
