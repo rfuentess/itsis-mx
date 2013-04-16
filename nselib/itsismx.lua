@@ -542,4 +542,12 @@ function DecToHex(Number)
     return s
 end
 
+---
+-- Return a single string with the number of segments we need. 
+-- Ex:  2001:db8:c0ca::1 with segment 4 will return a string  
+--  2001:db8:
+IPv6_Extraer_Segmentos = function (  Address,  Segment)
+
+end 
+
 return _ENV;
