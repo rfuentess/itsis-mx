@@ -19,7 +19,7 @@ description=[[
   but will have arguments for run a full scan of  16,777,216.00  host 
   by each vendor provided ( Only for the INSANE! ).
   
-  BE CAREFUL , remember some vendors have more than one single OIED
+  BE CAREFUL , remember some vendors have more than one single OUI
 ]]
 
 ---
@@ -177,13 +177,13 @@ end
 -- The user can increase the number to the 24 bit BUT Will take A LOT OF RESOURCES
 -- and TIME (and when using 22 or more bits will be with brute force only). 
 -- @args 	IPv6Prefix 	String - IPv6 Subnet ( PRefix MUST BE 64)
--- @args	HighPart	Table	- OIED candidates (the higher 24 bits Mac ddres)
+-- @args	HighPart	Table	- OUI candidates (the higher 24 bits Mac ddres)
 -- @return 	Table		Total Hosts IPv6 address for the IPv6 Subnet (or Nil)
 -- @return	String		Error message when there is one (Nil otherwise)
 local getSlaacCandidates = function ( IPv6Prefix , HighPart ) 
 	
 	local hosts, sError =nil, nil
-	local _, OIED, hexadecimal, bitsAlto
+	local _, OUI, hexadecimal, bitsAlto
 	local Metodo, NumBits = stdnse.get_script_args("itsismx.slaac.compute", "itsismx.slaac.nbits")
 	local IPv6Base, IPv6Segmentos
 	
@@ -202,7 +202,8 @@ local getSlaacCandidates = function ( IPv6Prefix , HighPart )
 	-- There should be special Candidates, thoses will be the one from 
 	-- known virtual machines. On those cases "HIGHParth"  would be longer than 24 bits
 	-- (Actually the general values  come as a string XXXXXX  so, 
-	-- any longer 6 character will be "Special"
+	-- any longer 6 character will be "Special" BUT the user could make the mistake of use 
+	-- introduce 6 hex digits from a special case. 
 	
 	-- Though with 22 bits we are covering only 12.5% of possibe address, we are talkign about
 	-- a lookup table of 4 million when we are using random mechanism ( yep, there is a special 
@@ -221,12 +222,15 @@ local getSlaacCandidates = function ( IPv6Prefix , HighPart )
 		Metodo = "brute"
 	end
 	
-	-- We begin with the OIED candidates, and for each group we'll try to add them 
+	-- We begin with the OUI candidates, and for each group we'll try to add them 
 	-- to our IPv6 subnets	
-	for _ , OIED in ipairs(HighPart) do 
-	
-		if #OIED == 6 then -- Our clasic case! 
-			hexadecimal = tonumber(OIED,16) 
+	for _ , OUI in ipairs(HighPart) do 
+		
+		-- The Very well know special cases are: 
+		-- 080027 Cadmus Computer Systems ( Virtual Box "For now" )
+		-- 005056 VMware  (   )
+		if #OUI == 6 then -- Our clasic case! (And some Virtual  mahcines cases too)
+			hexadecimal = tonumber(OUI,16) 
 			
 			hexadecimal =  bit32.replace( hexadecimal , 2,16,2) -- This or AND
 			bitsAlto = itsismx.DecToHex( hexadecimal) -- This ignore the high part...
@@ -263,41 +267,61 @@ local getSlaacCandidates = function ( IPv6Prefix , HighPart )
 			end
 			
 		end
+	
+		
+	
 	end
 	return hosts, sError
 
 end
+
+---
+-- This will search for the OUI of a specific company  and will return a list 
+-- for each field find.  
 
 local getMacPrefix = function ( Vendedores, MacList   ) 
 
 	local sLista, hLista = {},{}
 	local hMac, sID, _, sUserMac
 	
-	if type(Vendedores) ==  "string" then 
-		table.insert(sLista, Vendedores)
+	if type(Vendedores) ==  "string" then  -- This only make the search easy...
+		table.insert(sLista, Vendedores)   
 	elseif type(Vendedores) ==  "table" then 
 		sLista = Vendedores
 	else 
 		return nil
 	end
 	
-	
 	-- Now we search for the vendors in the Table. WE SEARCH ALL THE TABLE   not only the first
 	-- option. Why? Because some vendors can have more than one registry.
 	for _, sUserMac in pairs ( sLista)  do 
 		sUserMac = sUserMac:lower()
-		for hMac, sID in pairs( MacList ) do
-			sID = sID:lower()
-			if sID:find(sUserMac) ~= nil then
-				table.insert(hLista,hMac ) 
-				stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-					".Vendors: " .. " Adding  " ..   hMac .. " OUI  for the vendor: " .. sUserMac  .. 
-					" ( " .. sID .. " )")
+		
+		--There is two cases, a name or a full OUI, the problem the OUI is only hexadecimal of 
+		-- 6 Charactes the other isn't it.
+		if itsismx.Is_Valid_OUI(sUserMac ) then
+			table.insert(hLista,sUserMac )
+			stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				": " .. " Was added the OUI  " ..   sUserMac .. " directed by the user. "   )
+		else  -- Name of a companie
+			for hMac, sID in pairs( MacList ) do
+				sID = sID:lower()
+				
+				if sID:find(sUserMac) ~= nil then
+					table.insert(hLista,hMac ) 
+					stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+						".Vendors: " .. " Adding  " ..   hMac .. " OUI  for the vendor: " .. sUserMac  .. 
+						" ( " .. sID .. " )")
+				end
 			end
+		
+			stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				": " .. " Were addedd  " ..   #hLista .. " OUI for the vendor: " .. sUserMac  )
+		
+		
 		end
 		
-		stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-				".Vendors: " .. " Were addedd  " ..   #hLista .. " OUI for the vendor: " .. sUserMac  )
+		
 	end
 	
 	 
@@ -306,7 +330,6 @@ end
 
 local Prescanning = function ()
 
-	
 	local MacList, PrefixAux, _
 	local bSalida, tSalida = false , { Nodos={}, Error=""}
 	local MacUsers,IPv6User  = stdnse.get_script_args("itsismx.slaac.vendors","itsismx-subnet")
@@ -318,7 +341,7 @@ local Prescanning = function ()
 	stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 			": Begining the Pre-scanning work... "    )
 	
-	-- First, we retrie the MAC address list 
+	-- First, we retrieve the MAC address list 
 	bSalida, MacList = datafiles.parse_mac_prefixes ()
 	
 	-- We don't have anything to fail on this...
@@ -331,8 +354,11 @@ local Prescanning = function ()
 	
 	
 	-- Now we must retrieve the Prefixes given by the user and retrieve the total numbers
-	-- if the user didn-t give one we are going to use a Default
+	-- if the user didn-t give one we are going to use a Default. 
+	-- There is too, the option the user give a OUI for search a specify one   
+	-- So, we are going to validate that. 
 	if (MacUsers == nil ) then
+		
 		PrefixHigh = getMacPrefix( "DELL",MacList  )
 	else
 		PrefixHigh = getMacPrefix( MacUsers,MacList  )

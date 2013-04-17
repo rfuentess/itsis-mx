@@ -543,11 +543,33 @@ function DecToHex(Number)
 end
 
 ---
--- Return a single string with the number of segments we need. 
--- Ex:  2001:db8:c0ca::1 with segment 4 will return a string  
---  2001:db8:
-IPv6_Extraer_Segmentos = function (  Address,  Segment)
+-- Confirm ir a given String is a oui or not. 
+-- the OUI are 6 hexadecimal characters.
+-- @args 	OUI		String representing the potential OUI
+-- @return	Boolean	TRUE if a OUI valid format, otherwise false
+Is_Valid_OUI = function (  OUI )
 
+	--Robust and simple
+	if OUI == nil then 
+		return false
+	elseif type(OUI )  ~= "string" then
+		return false
+	elseif #OUI ~= 6 then
+		return false
+	end
+	
+	local hexstr = '0123456789abcdefABCDEF'
+	local Index, Caracter = 1, ""
+	
+	--Now begin the process 
+	for Index = 1, 6 do 
+		Caracter = OUI:sub(Index,Index)
+		if  hexstr:find(Caracter) == false then
+			return false
+		end
+	end
+	
+	return true
 end 
 
 return _ENV;
