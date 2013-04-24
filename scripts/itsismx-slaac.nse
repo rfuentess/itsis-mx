@@ -60,8 +60,8 @@ description=[[
 --			"number"	- 4 Numbers of 32 bits (Mathematical operations)
 --			"sring"		- (Default) 128 Characters on string  (Pseudo Boolean operations)
 --
--- Version 0.1
---	
+-- Version 1.0
+--	Updated 24/04/2013	- v1.0 
 -- 	Created 10/04/2013	- v0.1 - created by Ing. Raul Fuentes <ra.fuentess.sam@gmail.com>
 --
 
@@ -191,13 +191,12 @@ end
 local Vmware_Range_000C29 = function ( IPv6Base, nBits, Metodo )
 	local hosts, sError = {} , nil
 	local IPv4Candidatos,FinalList = {},{}
-	local IPv4Argumentos = stdnse.get_script_args("itsismx.slaac.vmipv4")
+	local IPv4Argumentos, IPv4Predicho = stdnse.get_script_args("itsismx.slaac.vmipv4","itsismx.slaac.knownbits")
 	local iC,iIndex, iAux, lRandom = 0,0,0,{}
 	local _ , Posible, bBool,Segmentos, sIPv4L, IPv6Prefix
 	local TheNext, TheLast ,IPv6Segmentos
-	-- This can be affected by itsismx-IPv6ExMechanism
 	local IPv6ExMechanism = stdnse.get_script_args( "itsismx-IPv6ExMechanism" )
-	
+	local BitPredichos, Maxnumero = 0, 0
 	--  ccccccugcccccccc:cccccccc
 	--  0000000000001100:00101001
 	-- ___________________________
@@ -221,21 +220,53 @@ local Vmware_Range_000C29 = function ( IPv6Base, nBits, Metodo )
 		iC = #IPv4Candidatos
 	else --We don/t known so, we need to  try to guess IPv4 address 
 		--print("\t\t NO Hay argumentos"  ) 
-		if  nBits == nil then
-			nBits=11
-		elseif nBits > 16 then -- 16 because the other 8 are brute
-			sError=" VMware (Dynamic): was used only 16 bits of " .. nBits .. " for try to scan."
-			nBits=16 
-			Metodo = "brute"
-		elseif nBits>14 then
-			Metodo = "brute"
-		end
 		
-		nBits=4 --DEBUG!!!
+		if IPv4Predicho ~= nil then 
+			-- First , we must be sure the user entry was correct
+			if itsismx.Is_Binary(IPv4Predicho ) then
+				BitPredichos = #IPv4Predicho
+				
+				if (16 - BitPredichos < 2 ) -- We need be able to do, something...
+					return nil 
+				end
+				-- What mean this?  Mean the max number to generate will change
+				Maxnumero =  math.pow( 2, 16 - BitPredichos)
+			
+				if nBits == nil then
+					nBits = math.floor( (16 - BitPredichos)/2 )
+				elseif  nBits > 16 - BitPredichos then 
+					nBits = 16 - BitPredichos
+					Metodo = "brute"
+				elseif nBits > math.floor( (16 - BitPredichos)/2 )  then
+					Metodo = "brute" -- Remember, bit
+				end
+				
+			else -- Something wrong...  We dont waste time trying to calculate it
+				stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+					" VMware (Dynamic): The argument knownbits has a non-binary number: " .. IPv4Predicho     )	
+				return nil 
+			
+			end
+			
+			
+		else 
+			if  nBits == nil then
+				nBits=11
+			elseif nBits > 16 then -- 16 because the other 8 are brute
+				stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+					" VMware (Dynamic): was used only 16 bits of " .. nBits .. " for try to scan."    )
+				 
+				nBits=16 
+				Metodo = "brute"
+			elseif nBits>14 then
+				Metodo = "brute"
+			end
+		end
+		--nBits=4 --DEBUG!!!
 		
 		-- Right now this truly or Do Random or do Sweep but we should be able to add any high bits
 		-- the user want to test. (We should increase the 88 bits and decrease the nbits) 
-		-- NEED TO BE IMPLEMENTED. (Line 288 must be changed too )
+		-- NEED TO BE IMPLEMENTED. (IPv6Prefix asign must be changed too )
 		
 		iC = math.pow(2, nBits)
 	--print ("Inicia con ... " .. iC )	 
@@ -243,13 +274,21 @@ local Vmware_Range_000C29 = function ( IPv6Base, nBits, Metodo )
 		while iIndex < iC do 
 			-- Random or Brute mechanism?
 			if Metodo == nil then
-				iAux = math.random(65536 ) -- 2^16
+				if IPv4Predicho ~= nil then 
+					iAux = math.random(Maxnumero )
+				else
+					iAux = math.random(65536 ) -- 2^16
+				end
 				table.insert(IPv4Candidatos, iAux )
 				table.insert(lRandom, iAux )
 				Metodo = "random"
 				iIndex = iIndex+1
 			elseif Metodo == "random" then
-				iAux = math.random(65536 )  -- 2^16
+				if IPv4Predicho ~= nil then 
+					iAux = math.random(Maxnumero )
+				else
+					iAux = math.random(65536 ) -- 2^16
+				end
 				bBool = false
 				
 				for  _ , Posible in ipairs(lRandom) do 
@@ -272,7 +311,8 @@ local Vmware_Range_000C29 = function ( IPv6Base, nBits, Metodo )
 			elseif Metodo == "brute" then
 				table.insert(IPv4Candidatos, iIndex )
 			else	-- ERROR!
-				return nil, "ERROR: The compute mechanism is incorrect: " .. Metodo
+				
+				return nil --, "ERROR: The compute mechanism is incorrect: " .. Metodo
 			end 
 		
 		end
@@ -316,12 +356,18 @@ local Vmware_Range_000C29 = function ( IPv6Base, nBits, Metodo )
 			return nil
 		end
 		
-		
+		if IPv4Predicho ~= nil then 
+			-- It-s more easy to convert everything to binaries
+			IPv6Prefix = ipOps.ip_to_bin(IPv6Base )
+			IPv6Prefix = IPv6Prefix:sub(1,64) .. "1111111111111110" ..  BitPredichos ..  itsismx. (sIPv4L)
+			print ( "Prueba:  "..  IPv6Prefix)
+		else
+				
 		IPv6Prefix = itsismx.DecToHex(IPv6Segmentos[1]) .. ":" .. itsismx.DecToHex(IPv6Segmentos[2]) .. ":" .. 
 			   itsismx.DecToHex(IPv6Segmentos[3]) .. ":" .. itsismx.DecToHex(IPv6Segmentos[4]) .. ":" .. 
 			   sHexadecimal .. "FF:FE" .. sIPv4L:sub(1,2) .. ":" .. sIPv4L:sub(3,4) .. "00"
 		
-		
+		end
 		-- Now... we only need to do a sweep on the last 8 bits...
 		TheNext, TheLast, sError = ipOps.get_ips_from_range(IPv6Prefix .. "/120")
 		
@@ -764,7 +810,37 @@ local Prescanning = function ()
 	return true, tSalida
 end
 
-
+---
+-- This a gently wind of the script, will save the host to the final register (The 
+--  only purpose of this nasty script)
+local Hostscanning = function( )
+	local tSalida = { Nodos=nil, Error=""}
+	local aux
+	
+	-- Only for the braves ... 
+	stdnse.print_debug(4, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+			": Begining the Host-scanning results... "    
+	
+	-- Should be impossible, but better be sure and cover this
+	if nmap.registry.itsismx == nil then 
+		tSalida.Error = "You must first initialize the global register Itsismx (There is a global function for that!)"
+		return false, tSalida
+	end	
+	
+	aux = nmap.registry.itsismx.sbkmac
+	if aux == nil then 
+		tSalida.Error = "The global register Itsismx wasn't initialzed correctly (There is a global function for that!)"
+		return false, tSalida
+	end
+	
+	--We use the aux for be able to add a new element to the table
+	aux[#aux +1] = host.ip
+	nmap.registry.itsismx.sbkmac = aux
+	
+	tSalida.Nodos = host.ip 	-- This rule ALWAY IS ONE ELEMENT!
+	
+	return true, tSalida
+end
 ---
 -- The script need to be working with IPv6
 prerule = function() return ( nmap.address_family() == "inet6") end
@@ -856,8 +932,19 @@ action = function ( host )
 							" nodes to the host scan phase" )
 			
 		end
-		
-	end --IF-Prefule
+	
+	elseif ( SCRIPT_TYPE== "hostrule" )  then
+		 bExito , tSalida = Hostscanning(host)
+		 tOutput.warning = tSalida.Error
+		 
+		 if ( bExito ~= true) then
+			stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+								" Error: " .. tSalida.Error)
+		 end
+		 
+		 tOutput.name = "Host online - Mapped IPv4 to IPv6"
+		table.insert(tOutput,tSalida.Nodos) --This will be alway one single host.
+	end 
 	
 	return stdnse.format_output(bExito, tOutput);	
 end

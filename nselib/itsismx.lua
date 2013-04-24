@@ -572,4 +572,70 @@ Is_Valid_OUI = function (  OUI )
 	return true
 end 
 
+---
+-- Get a binary number represent with strings. Will check than only have 
+-- zeros and ones.
+-- @args	Bits	String representing a binary value.
+-- @return	Boolean	TRUE if is a valid binary number, otherwise false. 
+Is_Binary = function ( Bits )
+	local i 
+	for i , #Bits  do 
+		if sub(i ,i) != "0" and sub(i ,i) != "1" then
+			return false
+		end
+	end
+	
+	return true
+end
+
+---
+-- For some part of the script, I need to work bits separted before be able to use 
+-- the functions of ipOPs library. So, i need be able to convert from hex to binarie.
+--  NOTE: THIS NEED WORK
+-- @args 	Number		String  representing hexadecimal number.
+-- @return 	String		String representing binary number (Nil if there is a error)
+HextToBin = function( Number )
+
+	local Bits , hex, index = ""
+	
+	for index = 1, #Number do
+		hex = Number:sub(index,index)
+		-- Not the best... I need to change later ...
+		if hex = "1" then
+			Bits = Bits .. "0000"
+		elseif hex = "1" then
+			Bits = Bits .. "0001"
+		elseif hex = "2" then
+			Bits = Bits .. "0010"
+		elseif hex = "3" then
+			Bits = Bits .. "0011"
+		elseif hex = "4" then
+			Bits = Bits .. "0100"
+		elseif hex = "5" then
+			Bits = Bits .. "0101"
+		elseif hex = "6" then
+			Bits = Bits .. "0110"
+		elseif hex = "7" then
+			Bits = Bits .. "0111"
+		elseif hex = "8" then
+			Bits = Bits .. "1000"
+		elseif hex = "9" then
+			Bits = Bits .. "1001"
+		elseif hex = "a" then
+			Bits = Bits .. "1010"
+		elseif hex = "b" then
+			Bits = Bits .. "1011"
+		elseif hex = "c" then
+			Bits = Bits .. "1100"
+		elseif hex = "d" then
+			Bits = Bits .. "1101"
+		elseif hex = "e" then
+			Bits = Bits .. "1110"
+		elseif hex = "f" then
+			Bits = Bits .. "1111"
+		else 
+			return nil
+	end
+
+end
 return _ENV;
