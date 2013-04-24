@@ -220,24 +220,26 @@ local Vmware_Range_000C29 = function ( IPv6Base, nBits, Metodo )
 		iC = #IPv4Candidatos
 	else --We don/t known so, we need to  try to guess IPv4 address 
 		--print("\t\t NO Hay argumentos"  ) 
-		
+		print ( "XXXXX UTA"  )
 		if IPv4Predicho ~= nil then 
 			-- First , we must be sure the user entry was correct
 			if itsismx.Is_Binary(IPv4Predicho ) then
 				BitPredichos = #IPv4Predicho
-				
-				if (16 - BitPredichos < 2 ) -- We need be able to do, something...
+				print ( "XXXXX "  ..  IPv4Predicho .. " " .. BitPredichos) 
+				if (16 - BitPredichos < 2 ) then -- We need be able to do, something...
 					return nil 
 				end
 				-- What mean this?  Mean the max number to generate will change
 				Maxnumero =  math.pow( 2, 16 - BitPredichos)
 			
+				print ( "XXXXX "  ..  IPv4Predicho .. " " .. Maxnumero) 
+			
 				if nBits == nil then
 					nBits = math.floor( (16 - BitPredichos)/2 )
-				elseif  nBits > 16 - BitPredichos then 
+				elseif  tonumber(nBits) > 16 - BitPredichos then 
 					nBits = 16 - BitPredichos
 					Metodo = "brute"
-				elseif nBits > math.floor( (16 - BitPredichos)/2 )  then
+				elseif tonumber(nBits) > math.floor( (16 - BitPredichos)/2 )  then
 					Metodo = "brute" -- Remember, bit
 				end
 				
@@ -245,20 +247,17 @@ local Vmware_Range_000C29 = function ( IPv6Base, nBits, Metodo )
 				stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 					" VMware (Dynamic): The argument knownbits has a non-binary number: " .. IPv4Predicho     )	
 				return nil 
-			
 			end
-			
-			
 		else 
 			if  nBits == nil then
 				nBits=11
-			elseif nBits > 16 then -- 16 because the other 8 are brute
+			elseif tonumber(nBits) > 16 then -- 16 because the other 8 are brute
 				stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 					" VMware (Dynamic): was used only 16 bits of " .. nBits .. " for try to scan."    )
 				 
 				nBits=16 
 				Metodo = "brute"
-			elseif nBits>14 then
+			elseif tonumber(nBits)>14 then
 				Metodo = "brute"
 			end
 		end
@@ -338,10 +337,10 @@ local Vmware_Range_000C29 = function ( IPv6Base, nBits, Metodo )
 			sIPv4L 	= sIPBBajo .. sIPBBajo
 		else
 			sIPv4L = itsismx.DecToHex(Posible ) -- Convert to hex
-			while #sIPv4L < 4 do				-- Be sure to have 4 Hex digits
-				sIPv4L = "0" .. sIPv4L
-			end
-			 
+			if IPv4Predicho == nil then --If we know the exact dimension we don-t
+				-- Be sure to have 4 Hex digits
+				while #sIPv4L < 4 do sIPv4L = "0" .. sIPv4L end
+			 end
 		end
 		
 		-- Now we create the prefix we have learned until now.
@@ -359,8 +358,12 @@ local Vmware_Range_000C29 = function ( IPv6Base, nBits, Metodo )
 		if IPv4Predicho ~= nil then 
 			-- It-s more easy to convert everything to binaries
 			IPv6Prefix = ipOps.ip_to_bin(IPv6Base )
-			IPv6Prefix = IPv6Prefix:sub(1,64) .. "1111111111111110" ..  BitPredichos ..  itsismx. (sIPv4L)
-			print ( "Prueba:  "..  IPv6Prefix)
+			
+			print ( sHexadecimal .. "  " .. #itsismx.HextToBin(sHexadecimal) .. " " ..  itsismx.HextToBin(sHexadecimal))
+			print ( IPv4Predicho .. "  " .. #IPv4Predicho)
+			print  ( sIPv4L .. "  " .. #itsismx.HextToBin(sIPv4L)   )
+			IPv6Prefix = IPv6Prefix:sub(1,64) ..  itsismx.HextToBin(sHexadecimal) .. "1111111111111110" ..  IPv4Predicho ..  itsismx.HextToBin(sIPv4L)
+			print ( "Prueba:  Dimension "..  #IPv6Prefix)
 		else
 				
 		IPv6Prefix = itsismx.DecToHex(IPv6Segmentos[1]) .. ":" .. itsismx.DecToHex(IPv6Segmentos[2]) .. ":" .. 
@@ -438,11 +441,11 @@ local Vmware_Range_005056 = function ( IPv6Base, nBits, Metodo )
   
 	-- Now, we are going to search on the next 6 bits, but this mean we need to adjust a little more 
 	-- nBits for be sure don't overflow the 128 bits range of search
-	if nBits > 18 then --24-6
+	if tonumber(nBits) > 18 then --24-6
 		nBits = 18
 		Metodo = "brute"
 		sError = " \n VMware Static MAC: Was need to reduce the bits to 18."
-	elseif nBits > 16 then -- IF we are going to search for 25% of host... then brute force.
+	elseif tonumber(nBits) > 16 then -- IF we are going to search for 25% of host... then brute force.
 		Metodo = "brute"	-- Probably is more efficient than random
 	end
 			
@@ -476,7 +479,7 @@ end
 -- @return	String		Error message when there is one (Nil otherwise)
 local getSlaacCandidates = function ( IPv6Prefix , HighPart ) 
 	
-	local hosts, sError =nil, nil
+	local hosts, sError =nil, ""
 	local _, OUI, hexadecimal, bitsAlto
 	local Metodo, NumBits = stdnse.get_script_args("itsismx.slaac.compute", "itsismx.slaac.nbits")
 	local IPv6Base, IPv6Segmentos
@@ -819,7 +822,7 @@ local Hostscanning = function( )
 	
 	-- Only for the braves ... 
 	stdnse.print_debug(4, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-			": Begining the Host-scanning results... "    
+			": Begining the Host-scanning results... " )    
 	
 	-- Should be impossible, but better be sure and cover this
 	if nmap.registry.itsismx == nil then 

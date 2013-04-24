@@ -579,11 +579,11 @@ end
 -- @return	Boolean	TRUE if is a valid binary number, otherwise false. 
 Is_Binary = function ( Bits )
 	local i 
-	for i , #Bits  do 
-		if sub(i ,i) != "0" and sub(i ,i) != "1" then
+	 for i = 1 , #Bits  do 
+		if Bits:sub(i,i) ~= "0" and Bits:sub(i ,i) ~= "1" then
 			return false
 		end
-	end
+	 end
 	
 	return true
 end
@@ -597,45 +597,52 @@ end
 HextToBin = function( Number )
 
 	local Bits , hex, index = ""
-	
+	Number = Number:lower()
 	for index = 1, #Number do
 		hex = Number:sub(index,index)
-		-- Not the best... I need to change later ...
-		if hex = "1" then
+		
+		--Not the best... I need to change later ...
+		if hex == "0" then
 			Bits = Bits .. "0000"
-		elseif hex = "1" then
+		elseif hex == "1" then
 			Bits = Bits .. "0001"
-		elseif hex = "2" then
+		elseif hex == "2" then
 			Bits = Bits .. "0010"
-		elseif hex = "3" then
+		elseif hex == "3" then
 			Bits = Bits .. "0011"
-		elseif hex = "4" then
+		elseif hex == "4" then
 			Bits = Bits .. "0100"
-		elseif hex = "5" then
+		elseif hex == "5" then
 			Bits = Bits .. "0101"
-		elseif hex = "6" then
+		elseif hex == "6" then
 			Bits = Bits .. "0110"
-		elseif hex = "7" then
+		elseif hex == "7" then
 			Bits = Bits .. "0111"
-		elseif hex = "8" then
+		elseif hex == "8" then
 			Bits = Bits .. "1000"
-		elseif hex = "9" then
+		elseif hex == "9" then
 			Bits = Bits .. "1001"
-		elseif hex = "a" then
+		elseif hex == "a" then
 			Bits = Bits .. "1010"
-		elseif hex = "b" then
+		elseif hex == "b" then
 			Bits = Bits .. "1011"
-		elseif hex = "c" then
+		elseif hex == "c" then
 			Bits = Bits .. "1100"
-		elseif hex = "d" then
+		elseif hex == "d" then
 			Bits = Bits .. "1101"
-		elseif hex = "e" then
+		elseif hex == "e" then
 			Bits = Bits .. "1110"
-		elseif hex = "f" then
+		elseif hex == "f" then
 			Bits = Bits .. "1111"
+		elseif  hex == "." or hex == ":" then --Nothing bad happens
+		--	return nil
 		else 
-			return nil
+			--return nil
+		end
+		
+		--print( hex .. "  "  .. Bits )
 	end
-
+	--print( " ___ " )
+	return Bits
 end
 return _ENV;
