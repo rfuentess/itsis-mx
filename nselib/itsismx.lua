@@ -558,14 +558,18 @@ Is_Valid_OUI = function (  OUI )
 		return false
 	end
 	
-	local hexstr = '0123456789abcdefABCDEF'
+	local hexstr = '0123456789abcdef'
 	local Index, Caracter = 1, ""
+	--OUI=OUI:lower()
+	--print("OUI: Original " .. OUI )
 	
 	--Now begin the process 
 	for Index = 1, 6 do 
 		Caracter = OUI:sub(Index,Index)
-		if  hexstr:find(Caracter) == false then
+		if  hexstr:find(Caracter) == nil then
 			return false
+		--else 
+		--	print ( "OUI: " .. Caracter  )
 		end
 	end
 	
@@ -645,4 +649,5 @@ HextToBin = function( Number )
 	--print( " ___ " )
 	return Bits
 end
+
 return _ENV;

@@ -61,6 +61,7 @@ description=[[
 --			"sring"		- (Default) 128 Characters on string  (Pseudo Boolean operations)
 --
 -- Version 1.0
+--	Updated 25/04/2013	- v1.3	- First version at full power! (and minor corrections)
 --	Updated 24/04/2013	- v1.0 
 -- 	Created 10/04/2013	- v0.1 - created by Ing. Raul Fuentes <ra.fuentess.sam@gmail.com>
 --
@@ -78,7 +79,8 @@ local Brute_Range = function( IPv6Base, nBits )
 	-- This can be affected by itsismx-IPv6ExMechanism
 	local IPv6ExMechanism = stdnse.get_script_args( "itsismx-IPv6ExMechanism" )
 	
-	--First, how many bits we are going to work ?
+	--nBits with brute force mean how many samples we are to take, this will impact on the 
+	-- Prefix
 	if nBits == nil then 
 		Prefix =  128 -11
 	elseif tonumber(nBits) > 2 and  tonumber(nBits) <= 24 then
@@ -105,8 +107,11 @@ local Brute_Range = function( IPv6Base, nBits )
 		table.insert(Hosts,TheNext)
 		TheNext = itsismx.GetNext_AddressIPv6(TheNext,Prefix, IPv6ExMechanism)
 		--print("\t\t WAJU: " .. TheNext   )
-		--bool ,err = ipOps.ip_in_range(TheNext, IPv6Base .. "00:0/" .. Prefix)
-	until not ipOps.ip_in_range(TheNext, IPv6Base .. "/" .. Prefix)
+		bool ,err = ipOps.ip_in_range(TheNext, IPv6Base .. "00:0/" .. Prefix)
+		-- if err ~= nil then
+			-- print("\t\t ERROR: " .. err   )
+		-- end
+	until not ipOps.ip_in_range(TheNext, IPv6Base .. "00:0/" .. Prefix)
 	
 	return Hosts
 end
@@ -179,220 +184,65 @@ local Random_Range = function ( IPv6Base, nBits )
 	return Hosts
 end
 
----
--- We search in the range of MAC  00:0C:29:WW:TT:UU but here is very special  WW:TT can be 
--- known beforehand because is based on IPv4 addres (are the last 16 bits) and UU is random.
--- On this function , here nBits will be considered only when don´t known IPv4 address because 
--- we are going to do sweep for UU
--- @args	IPv6Base	String IPv6 Address (WELL-FORMED)
--- @args	nBits		(Optional) Number  of bits to try to scan
--- @args	Metodo		(Optional) String  random values or sweep
--- @return	Table		Valid IPv6 hosts address ( or nil if there was a error)
-local Vmware_Range_000C29 = function ( IPv6Base, nBits, Metodo )
-	local hosts, sError = {} , nil
-	local IPv4Candidatos,FinalList = {},{}
-	local IPv4Argumentos, IPv4Predicho = stdnse.get_script_args("itsismx.slaac.vmipv4","itsismx.slaac.knownbits")
-	local iC,iIndex, iAux, lRandom = 0,0,0,{}
-	local _ , Posible, bBool,Segmentos, sIPv4L, IPv6Prefix
-	local TheNext, TheLast ,IPv6Segmentos
-	local IPv6ExMechanism = stdnse.get_script_args( "itsismx-IPv6ExMechanism" )
-	local BitPredichos, Maxnumero = 0, 0
-	--  ccccccugcccccccc:cccccccc
-	--  0000000000001100:00101001
-	-- ___________________________
-	--  0000001000001100:00101001	
-	local sHexadecimal = "020C:29"
+--- 
+-- This function will generate the sweep address for the case where the IPv4 address 
+-- are already known.
+-- We already known the IP4 list to work, we know almost everything , 
+-- we only need to do a brute force for 8 bits and that is all.  
+local Vmware_Range_000C29WellKnown = function( IPv6Base, sHexadecimal , IPv4Candidatos, IPv6ExMechanism ) 
 
-	-- We have two options: Or know or don't know
-	if IPv4Argumentos ~= nil then
-		--print("\t\t Hay argumentos"  ) 
-		if type(IPv4Argumentos) ==  "string" then 
-			stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-				" VMware (Dynamic): The user provided  1  IPv4 address."     )
-			table.insert(IPv4Candidatos,IPv4Argumentos )
-		elseif type(IPv4Argumentos) ==  "table" then
-			stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-				" VMware (Dynamic): The user provided " ..  #IPv4Argumentos ..  " IPv4 address."     )		
-			for _ , PrefixAux in ipairs(IPv4Argumentos) do -- This is healthy for my mind...
-				table.insert(IPv4Candidatos,PrefixAux )	
-			end	
-		end	
-		iC = #IPv4Candidatos
-	else --We don/t known so, we need to  try to guess IPv4 address 
-		--print("\t\t NO Hay argumentos"  ) 
-		print ( "XXXXX UTA"  )
-		if IPv4Predicho ~= nil then 
-			-- First , we must be sure the user entry was correct
-			if itsismx.Is_Binary(IPv4Predicho ) then
-				BitPredichos = #IPv4Predicho
-				print ( "XXXXX "  ..  IPv4Predicho .. " " .. BitPredichos) 
-				if (16 - BitPredichos < 2 ) then -- We need be able to do, something...
-					return nil 
-				end
-				-- What mean this?  Mean the max number to generate will change
-				Maxnumero =  math.pow( 2, 16 - BitPredichos)
-			
-				print ( "XXXXX "  ..  IPv4Predicho .. " " .. Maxnumero) 
-			
-				if nBits == nil then
-					nBits = math.floor( (16 - BitPredichos)/2 )
-				elseif  tonumber(nBits) > 16 - BitPredichos then 
-					nBits = 16 - BitPredichos
-					Metodo = "brute"
-				elseif tonumber(nBits) > math.floor( (16 - BitPredichos)/2 )  then
-					Metodo = "brute" -- Remember, bit
-				end
-				
-			else -- Something wrong...  We dont waste time trying to calculate it
-				stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-					" VMware (Dynamic): The argument knownbits has a non-binary number: " .. IPv4Predicho     )	
-				return nil 
-			end
-		else 
-			if  nBits == nil then
-				nBits=11
-			elseif tonumber(nBits) > 16 then -- 16 because the other 8 are brute
-				stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-					" VMware (Dynamic): was used only 16 bits of " .. nBits .. " for try to scan."    )
-				 
-				nBits=16 
-				Metodo = "brute"
-			elseif tonumber(nBits)>14 then
-				Metodo = "brute"
-			end
-		end
-		--nBits=4 --DEBUG!!!
+	local  _, Candidato, sIPv4L, Segmentos,sError
+	local sIPv4Ldot3, sIPv4Ldot4, sIPv6P120 
+	local IPv6Prefix, TheNext, TheLast
+	local hosts = {}
+	for _, Candidato in ipairs(IPv4Candidatos) do
 		
-		-- Right now this truly or Do Random or do Sweep but we should be able to add any high bits
-		-- the user want to test. (We should increase the 88 bits and decrease the nbits) 
-		-- NEED TO BE IMPLEMENTED. (IPv6Prefix asign must be changed too )
-		
-		iC = math.pow(2, nBits)
-	--print ("Inicia con ... " .. iC )	 
-		-- for iIndex = 1, iC do -- We begin to calculate the 16 bytes (or part of them)
-		while iIndex < iC do 
-			-- Random or Brute mechanism?
-			if Metodo == nil then
-				if IPv4Predicho ~= nil then 
-					iAux = math.random(Maxnumero )
-				else
-					iAux = math.random(65536 ) -- 2^16
-				end
-				table.insert(IPv4Candidatos, iAux )
-				table.insert(lRandom, iAux )
-				Metodo = "random"
-				iIndex = iIndex+1
-			elseif Metodo == "random" then
-				if IPv4Predicho ~= nil then 
-					iAux = math.random(Maxnumero )
-				else
-					iAux = math.random(65536 ) -- 2^16
-				end
-				bBool = false
-				
-				for  _ , Posible in ipairs(lRandom) do 
-					if Posible ==   iAux then 
-						bBool = true
-						--print("DAD" .. #IPv4Candidatos )
-						break
-					end
-				end
-				
-					if bBool then 
-						--iIndex = iIndex-1
-					else
-						table.insert(IPv4Candidatos, iAux )
-						table.insert(lRandom, iAux )
-						iIndex = iIndex+1
-					end
-					--print(iIndex .. "  "  .. #IPv4Candidatos )
-				
-			elseif Metodo == "brute" then
-				table.insert(IPv4Candidatos, iIndex )
-			else	-- ERROR!
-				
-				return nil --, "ERROR: The compute mechanism is incorrect: " .. Metodo
-			end 
-		
-		end
-		
-		
-	end
-	
-	stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-						" VMware(dynamic):  Will be adddded " .. iC .. "*255 ( "   ..  iC*255 .. 
-						" ) candiates address for try to guess  VM host for the prefix "  ..
-						  IPv6Base .. "/64" )
-	
-	--Now we truly begin to explore evertyhing
-	for _, Posible in ipairs(IPv4Candidatos) do
-	
-		--First we need to know if its a IPv4 Address or a 16-bits number.
-		if IPv4Argumentos ~= nil then 
-			Segmentos,sError = ipOps.get_parts_as_number(Posible)
-			local sIPbajo, sIPBBajo = itsismx.DecToHex(Segmentos[3])  ,  itsismx.DecToHex(Segmentos[4])
-			
-			while #sIPbajo < 2 do sIPbajo = "0" .. sIPbajo end
-			while #sIPBBajo < 2 do sIPBBajo = "0" .. sIPBBajo end
-			sIPv4L 	= sIPBBajo .. sIPBBajo
-		else
-			sIPv4L = itsismx.DecToHex(Posible ) -- Convert to hex
-			if IPv4Predicho == nil then --If we know the exact dimension we don-t
-				-- Be sure to have 4 Hex digits
-				while #sIPv4L < 4 do sIPv4L = "0" .. sIPv4L end
-			 end
-		end
-		
-		-- Now we create the prefix we have learned until now.
-		-- PPPP:PPPP:PPPP:PPPP:020C:29FF:FEXX:XX??	
-		
-		-- We need to get the blocks
-		
-		IPv6Segmentos,sError = ipOps.get_parts_as_number(IPv6Base)
+		-- For each candidate we retrieve the last 16 bits.
+		Segmentos,sError = ipOps.get_parts_as_number(Candidato)
 		if ( sError ~= nil) then
 			stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-						" VMware(dynamic): ERROR with" ..  IPv6Base .. "/64. Message: " .. sError)
+						" VMware(dynamic): ERROR with one or more IPv4 provided by the user:" ..  
+						Posible .. ". Error Message: " .. sError)
 			return nil
 		end
 		
-		if IPv4Predicho ~= nil then 
-			-- It-s more easy to convert everything to binaries
-			IPv6Prefix = ipOps.ip_to_bin(IPv6Base )
+		sIPv4Ldot3, sIPv4Ldot4 = itsismx.DecToHex(Segmentos[3])  ,  itsismx.DecToHex(Segmentos[4])
 			
-			print ( sHexadecimal .. "  " .. #itsismx.HextToBin(sHexadecimal) .. " " ..  itsismx.HextToBin(sHexadecimal))
-			print ( IPv4Predicho .. "  " .. #IPv4Predicho)
-			print  ( sIPv4L .. "  " .. #itsismx.HextToBin(sIPv4L)   )
-			IPv6Prefix = IPv6Prefix:sub(1,64) ..  itsismx.HextToBin(sHexadecimal) .. "1111111111111110" ..  IPv4Predicho ..  itsismx.HextToBin(sIPv4L)
-			print ( "Prueba:  Dimension "..  #IPv6Prefix)
-		else
-				
-		IPv6Prefix = itsismx.DecToHex(IPv6Segmentos[1]) .. ":" .. itsismx.DecToHex(IPv6Segmentos[2]) .. ":" .. 
-			   itsismx.DecToHex(IPv6Segmentos[3]) .. ":" .. itsismx.DecToHex(IPv6Segmentos[4]) .. ":" .. 
+		while #sIPv4Ldot3 < 2 do sIPv4Ldot3 = "0" .. sIPv4Ldot3 end
+		while #sIPv4Ldot4 < 2 do sIPv4Ldot4 = "0" .. sIPv4Ldot4 end
+		sIPv4L 	= sIPv4Ldot3 .. sIPv4Ldot4
+		
+		-- Now we alredy have everything for get the first 120 bits!
+		Segmentos,sError = ipOps.get_parts_as_number(IPv6Base)
+		if ( sError ~= nil) then
+			stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+						" VMware(dynamic): ERROR with" ..  IPv6Base .. "/64. Error Message: " .. sError)
+			return nil
+		end
+		
+		---- PPPP:PPPP:PPPP:PPPP:020C:29FF:FEXX:XX??
+		IPv6Prefix = itsismx.DecToHex(Segmentos[1]) .. ":" .. itsismx.DecToHex(Segmentos[2]) .. ":" .. 
+			   itsismx.DecToHex(Segmentos[3]) .. ":" .. itsismx.DecToHex(Segmentos[4]) .. ":" .. 
 			   sHexadecimal .. "FF:FE" .. sIPv4L:sub(1,2) .. ":" .. sIPv4L:sub(3,4) .. "00"
 		
-		end
 		-- Now... we only need to do a sweep on the last 8 bits...
 		TheNext, TheLast, sError = ipOps.get_ips_from_range(IPv6Prefix .. "/120")
-		
 		if ( sError ~= nil) then
 			stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 						" VMware(dynamic): ERROR with (Variable IPv6Prefix)" ..  
-						IPv6Prefix .. "/120. Message: " .. sError)
+						IPv6Prefix .. "/120. Error Message: " .. sError)
 			return nil
 		end
 		
 		stdnse.print_debug(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-						" VMware(dynamic):  Will be add 255 tarets to the scan list: " .. IPv6Prefix .. "/120")
-		
+						" VMware(dynamic):  Will be add 255 targets to the scan list: " .. IPv6Prefix .. "/120")
+						
 		repeat  
 	
-			
 			stdnse.print_debug(4, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 						" VMware(dynamic):  Added IPv6 address " .. TheNext .. " to the host scanning list...")
-			
 			table.insert(hosts,TheNext)
 			TheNext = itsismx.GetNext_AddressIPv6(TheNext,120, IPv6ExMechanism)
-			--print("\t\t WAJU: " .. TheNext   )
 			bool ,sError = ipOps.ip_in_range(TheNext, IPv6Prefix .. "/120" )
 			if ( sError ~= nil) then
 				stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
@@ -404,7 +254,219 @@ local Vmware_Range_000C29 = function ( IPv6Base, nBits, Metodo )
 		
 	end
 	
-	return hosts , sError 
+	return  hosts
+end
+
+
+---
+-- We search in the range of MAC  00:0C:29:WW:TT:UU but here is very special  WW:TT can be 
+-- known beforehand because is based on IPv4 addres (are the last 16 bits) and UU is random.
+-- nBits will play  a role different on other functions. Here will indicate the number of samples
+-- to generate  ( 2^nBits ) 
+-- @args	IPv6Base	String IPv6 Address (WELL-FORMED)
+-- @args	nBits		(Optional) Number  of bits to try to scan
+-- @args	Metodo		(Optional) String  random values or sweep
+-- @return	Table		Valid IPv6 hosts address ( or nil if there was a error)
+local Vmware_Range_000C29 = function ( IPv6Base, nBits, Metodo )
+	local hosts, sError = {} , nil
+	local IPv4Candidatos, Num_Aleatorios,iC, iAux = {},{},0
+	local IPv4Argumentos, BitsKnown = stdnse.get_script_args("itsismx.slaac.vmipv4","itsismx.slaac.knownbits")
+	local IPv6ExMechanism = stdnse.get_script_args( "itsismx-IPv6ExMechanism" )
+	local TotalMuestras, Wellknown, RangoAleatorio
+	local Segmentos,sError, Candidato,IPv6Prefix,IPv6Candidato
+	
+	--  ccccccugcccccccc:cccccccc
+	--  0000000000001100:00101001
+	-- ___________________________
+	--  0000001000001100:00101001	
+	local sHexadecimal = "020C:29" -- This is the high 24 bits
+
+	-- There is 2 way to this function: 1) We known beforehand IPv4 address
+	-- 2) We need to generate the IPv4 address.  Both choices are dictated by 
+	-- IPv4Argumentos. 
+	
+	if IPv4Argumentos ~= nil then
+		-- Can be a single one or multiples, for my health I will pass  
+		-- everything to a single new table.
+		if type(IPv4Argumentos) ==  "string" then 
+			stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				" VMware (Dynamic): The user provided  1  IPv4 address."     )
+			table.insert(IPv4Candidatos,IPv4Argumentos )
+		elseif type(IPv4Argumentos) ==  "table" then
+			stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				" VMware (Dynamic): The user provided " ..  #IPv4Argumentos ..  " IPv4 address."     )		
+			for _ , PrefixAux in ipairs(IPv4Argumentos) do -- This is healthy for my mind...
+				table.insert(IPv4Candidatos,PrefixAux )	
+			end	
+		end	 -- To this point the first way don-t need to do more... 
+		
+		return  Vmware_Range_000C29WellKnown (  IPv6Base, sHexadecimal , IPv4Candidatos, IPv6ExMechanism ) 
+	
+	end
+	
+	-- From this point we only care for the Random option (WEEEE!)
+	-- We  are to generate 16 bits of random values BUT the user can  provided 
+	-- some of thoses bits  chaning everything. 
+	-- However we are going by defaulwork  with 4 of 16 bits which will generate
+	-- 8 tentatives address groups of 255 address for give a total   
+	--  4,080  of  16,711,680 samples. 
+	-- The user can be more brave and give more bits.
+	-- Tip:Because this is special, we check again the global registry otherwise 
+	-- nBits will read with 11 instead of nil.
+	if stdnse.get_script_args("itsismx.slaac.nbits") == nil then
+		nBits = 4 
+	elseif tonumber(nBits) > 16 then -- As this is a special case, this can happens.
+		stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				" VMware (Dynamic): The args nbits was trunked to 16 for compute this part. "  )
+		nBits = 16
+	end
+	
+	--nBits = 4  --DEBUG!!!
+	
+	if BitsKnown == nil then
+		Wellknown = 0
+	elseif itsismx.Is_Binary (BitsKnown) then
+		Wellknown = #BitsKnown
+	else  -- The user provided something very important, wrong, SO WE STOP.
+		stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				" VMware (Dynamic): The user provided a wrong binary value: " ..  BitsKnown  )
+		return nil
+	end
+	
+	-- Now we begin to compute the information.
+	
+	if  nBits + Wellknown >  16 then --  Houston we have a problem...
+		--There is something wrong, probably from the other VM or testing or from 
+		-- the way the user is using the system, so, we STOP.
+		stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				" VMware (Dynamic): There is incongruity with knownbits and/or nbits" .. 
+				" because are bigger than 16: " .. nBits .. " + " ..  Wellknown .. " > 16"  )	
+		return nil 
+	end 
+	
+	TotalMuestras = math.pow(2, nBits)				-- How many samples to do
+	RangoAleatorio = math.pow(2, 16 - Wellknown)	-- How big the random number to compute
+	
+	-- The question is .. brute or random mechanism? At least the user choice by himself. 
+	
+	if Metodo == nil then
+		-- More than half of samples is bad for random because overhead with the extra 
+		-- table.
+		if RangoAleatorio <=  math.floor( 0.5 *  TotalMuestras) then
+			Metodo = "brute"
+			
+		else 
+			Metodo = "random"
+		end
+	end
+	
+	-- Now we begin to create candidates. Those will have decimal number for now and will be 
+	-- stored on a table.
+	while  iC < TotalMuestras  do
+		if Metodo == "brute" then 
+			table.insert(IPv4Candidatos, iC)
+			iC = iC + 1
+		elseif  Metodo == "random" then -- We are going to use a extra table 
+			iAux = math.random( RangoAleatorio )
+			bBool = true
+			for _ , Canditato in ipairs(IPv4Candidatos) do
+				if Canditato == iAux then
+					 bBool = false
+					 break
+				end
+			end
+			if bBool then
+				table.insert(IPv4Candidatos, iAux)
+				iC = iC + 1
+			end
+		end			
+	end
+	
+	-- Now we have almost all the data need for formed a valid IPv6 address like this:
+	Segmentos,sError = ipOps.get_parts_as_number(IPv6Base)
+		if ( sError ~= nil) then
+			stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+						" VMware(dynamic): ERROR with" ..  IPv6Base .. "/64. Error Message: " .. sError)
+			return nil
+		end
+		
+	-- The last part is assemble the XX:XX and create the sweep scan for the last  8 bits 
+	IPv6Prefix = itsismx.DecToHex(Segmentos[1]) .. ":" .. itsismx.DecToHex(Segmentos[2]) .. ":" .. 
+			     itsismx.DecToHex(Segmentos[3]) .. ":" .. itsismx.DecToHex(Segmentos[4])	.. ":" .. 
+			     sHexadecimal .. "FF:FE"   
+	-- PPPP:PPPP:PPPP:PPPP:020C:29FF:FEXX:XX?? to bits
+	IPv6Prefix, sError = ipOps.ip_to_bin(IPv6Prefix.."00:0000" )  -- FE::/104 ~= FE00::/112
+	if sError ~= nil then
+				print( "ARG " .. IPv6Prefix.."00:0000"  .. " "  .. sError)
+			end
+	--print( "ARG " ..  IPv6Prefix .. " " ..  #IPv6Prefix)
+	--print ("YYYY Muestra "  .. #IPv4Candidatos  )
+	
+	for _ , Candidato in ipairs( IPv4Candidatos )	do
+		 	-- We convert the number to hexadecimal and then to binary 
+			iAux = itsismx.DecToHex(Candidato)
+			iAux = itsismx.HextToBin(iAux) 
+			
+			-- Now, we  can have a problem, suppose we were working with a number of 13 bits
+			-- with the last function "iAux" will have 16 bits instead of 13, so we need 
+			-- to be sure the lenght is correct.  BUT by other hand we have the other alternative
+			-- the number could be simple: 1 and will return "0001" instead of "0000000000001"
+			--print ("YYYY iAux "  .. iAux  .. " " .. #iAux )
+			if  16 - Wellknown < #iAux  then --too big?
+				while   16 - Wellknown < #iAux  do iAux = iAux:sub(2) end
+			elseif 16 - Wellknown > #iAux then -- too small?
+				while   16 - Wellknown > #iAux  do iAux = 0 .. iAux end
+			end
+			
+			--print ("YYYY iAux "  .. iAux .. " " .. #iAux  )
+			-- We assemble the Prefix! but... we had a Hex part and a binary part... is chaos 
+			-- we pass everything to binary.
+			--
+			
+			
+			--print ("YYYY LEER "  .. #IPv6Prefix:sub(1,104) .. " " .. #iAux .. " 8"  )
+			if  Wellknown == 0  then
+				IPv6Candidato = IPv6Prefix:sub(1,104) .. iAux .. "00000000"
+			else 
+				IPv6Candidato = IPv6Prefix:sub(1,104) .. BitsKnown .. iAux .. "00000000"
+			end
+			
+			-- We should have 128 bits and pass them to IPv6 again...
+			--print ( "YYYY: IPv6Candidato " .. #IPv6Candidato ) 
+			IPv6Candidato = ipOps.bin_to_ip( IPv6Candidato )
+			--print ( "YYYY: " .. IPv6Candidato )
+
+						
+			-- And now brute force!
+			TheNext, TheLast, sError = ipOps.get_ips_from_range(IPv6Candidato .. "/120")
+			if ( sError ~= nil) then
+				stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+							" VMware(dynamic): ERROR with (Variable IPv6Candidato)" ..  
+							IPv6Candidato .. "/120. Error Message: " .. sError)
+				return nil
+			end
+			
+			stdnse.print_debug(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+							" VMware(dynamic):  Will be add 255 targets to the scan list: " .. IPv6Candidato .. "/120")
+							
+			repeat  
+		
+				stdnse.print_debug(4, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+							" VMware(dynamic):  Added IPv6 address " .. TheNext .. " to the host scanning list...")
+				table.insert(hosts,TheNext)
+				TheNext = itsismx.GetNext_AddressIPv6(TheNext,120, IPv6ExMechanism)
+				bool ,sError = ipOps.ip_in_range(TheNext, IPv6Candidato .. "/120" )
+				if ( sError ~= nil) then
+					stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+							" VMware(dynamic): Error generating range of IPv6 address " .. sError )
+					return nil
+				end
+				
+			until not ipOps.ip_in_range(TheNext, IPv6Candidato .. "/120" )
+		
+	end
+	
+	return hosts  
 end
 
 ---
@@ -522,10 +584,12 @@ local getSlaacCandidates = function ( IPv6Prefix , HighPart )
 	-- We begin with the OUI candidates, and for each group we'll try to add them 
 	-- to our IPv6 subnets	
 	for _ , OUI in ipairs(HighPart) do 
-		
+		math.randomseed ( nmap.clock_ms() ) -- We are going to use  Random  values, so Seed!
 		if #OUI == 6 then -- Our clasic case! (And some Virtual  mahcines cases too)
-			hexadecimal = tonumber(OUI,16) 
 			
+			--print( "XXDS " .. OUI )
+			hexadecimal = tonumber(OUI,16) 
+			--print( "XXDS " .. hexadecimal )
 			hexadecimal =  bit32.replace( hexadecimal , 2,16,2) -- This or AND
 			bitsAlto = itsismx.DecToHex( hexadecimal) -- This ignore the high part...
 			
@@ -562,7 +626,7 @@ local getSlaacCandidates = function ( IPv6Prefix , HighPart )
 			
 			--There is a chance the host table will be empty, this a premature error
 			if hosts == nil then
-				sError = sError .. "\n There was a error with the Prefix:  "  .. IPv6Prefix .. 
+				sError =  "\n There was a error with the Prefix:  "  .. IPv6Prefix .. 
 						" or maybe with the OUI: " ..  HighPart .. 
 						" you can use -dddd for more information"
 			end
@@ -572,19 +636,20 @@ local getSlaacCandidates = function ( IPv6Prefix , HighPart )
 			--	Manually configured MAC address of the VMs: 00:50:56:XX:YY:ZZ
 			-- 	Dynamic  configured MAC address of the VMs: 00:0C:29:WW:TT:UU
 			
-			hosts = Vmware_Range_000C29(IPv6Prefix,NumBits )
+			hosts = Vmware_Range_000C29(IPv6Prefix,NumBits, Metodo  )
 			
 			-- Uh... we need to get ready hosts ofr the next one...
 			if hosts ~= nil then
 				for Index , Candidate in ipairs(hosts)  do table.insert(FinalList, Candidate) end
 			else 
-				sError = sError .. " \n The compute of VMware 00:0C:29:WW:TT:UU had a error for the prefix  "  .. 
+				sError =  " \n The compute of VMware 00:0C:29:WW:TT:UU had a error for the prefix  "  .. 
 						IPv6Prefix .. " you can use -dddd for find the error (probably human)."
 			end
+			math.randomseed ( nmap.clock_ms() ) -- We update the Seed again.
 			hosts = Vmware_Range_005056 (IPv6Prefix,NumBits )
 			
 			if hosts == nil then
-				sError = sError .. " The compute of VMware 00:50:56:XX:YY:ZZ had a error for the prefix  "  .. 
+				sError =  " The compute of VMware 00:50:56:XX:YY:ZZ had a error for the prefix  "  .. 
 						IPv6Prefix .. " you can use -dddd for find the error (probably human)."
 			end
 		end
@@ -592,6 +657,10 @@ local getSlaacCandidates = function ( IPv6Prefix , HighPart )
 		--We add those hosts to the final list for avoid lost them to the next round
 		for Index , Candidate in ipairs(hosts)  do table.insert(FinalList, Candidate) end
 	
+	end
+	
+	if sError == nil then
+		sError = ""
 	end
 	return FinalList, sError
 	--return FinalList, "RAYOS"
@@ -630,11 +699,11 @@ local getMacPrefix = function ( Vendedores, MacList   )
 		-- 6 Charactes the other isn't it, so IF there is any companie which has exactly that 
 		-- will cause a False positive (But nah!).
 		if itsismx.Is_Valid_OUI(sUserMac ) then 
-			--if sID:find(sUserMac) ~= nil then
+			
 				table.insert(hLista,sUserMac )
 				stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-					": " .. " Was added the OUI  " ..   sUserMac .. " directed by the user. "   )
-			--end
+					": " .. " Was added the OUI  " ..   sUserMac .. " provided by the user. "   )
+			
 		else  -- Name of a companie
 			for hMac, sID in pairs( MacList ) do
 				sID = sID:lower()
@@ -895,7 +964,7 @@ action = function ( host )
 	local  bHostsPre, sHostsPre 
 	local Nodes = {} -- Is a Auxiliar 
 	itsismx.Registro_Global_Inicializar("sbkmac") -- Prepare everything!
-	math.randomseed ( nmap.clock_ms() ) -- We are going to use  Random  values, so Seed!
+	
 	
 	-- The aciton is divided in two parts: Pre-scanning and host scanning.
 	-- The first choice the tentative hosts to scan and the second only 
@@ -926,8 +995,8 @@ action = function ( host )
 		
 			--Final report of the Debug Lvl of Prescanning
 			stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-								" Temptative Mapped IPv4 to IPv6 added to the scan:" ..  #tSalida.Nodos .. 
-								"\n Succesful Mapped IPv4 to IPv6 added to the scan:" ..  #Nodes )
+								" Temptative address based on SLAAC added to the scan:" ..  #tSalida.Nodos .. 
+								"\n Succesful address based on SLAAC added to the scan:" ..  #Nodes )
 			-- We add those to the global registry
 			-- We don't add those nodes to the standard exit BECAUSE ARE TEMPTATIVE ADDRESS
 			nmap.registry.slaac_PreHost = Nodes 
@@ -945,7 +1014,7 @@ action = function ( host )
 								" Error: " .. tSalida.Error)
 		 end
 		 
-		 tOutput.name = "Host online - Mapped IPv4 to IPv6"
+		 tOutput.name = "Host online - IPv6 address SLAAC"
 		table.insert(tOutput,tSalida.Nodos) --This will be alway one single host.
 	end 
 	
