@@ -1,0 +1,14 @@
+# $Id: itsismx-words-known 2013-04-26 rfuentess $ por ahora hecho a manita 
+# For now the words come from "common" password on dictionary attacks  
+# and from other texts.
+# The way to look this file is 
+# Number of segments |  Word |  word in binary
+# This is for give a easy time  choicing which one to pick and give a easy time 
+# assembling the IPv6 address on binary.
+# Some basic dictionariesÑ
+# http://nedbatchelder.com/text/hexwords.html
+#
+1	c0ca			1100000011001010
+1 	dead			1101111010101101
+2	cafebabe		11001010111111101011101010111110
+2	deadbeef		11011110101011011011111011101111

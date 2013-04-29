@@ -474,12 +474,12 @@ GetNext_AddressIPv4 = function (IPv4ddress)
 end
 
 ---
--- Receive X:X:X::/YY and return two separated fields: 
+-- Receive X:X:X:X::/YY and return two separated fields: 
 -- IPv6 ADdress and Prefix.
 --  The lesser prefix that return it's 48 because before that 
 -- is IANA Field.
--- @args	IPv6PRefix	A String IPv6 address with Prefix: X:X:X::/YY
--- @return String	Formated full IPv6 ( X:X:X:: )
+-- @args	IPv6PRefix	A String IPv6 address with Prefix: X:X:X:X::/YY
+-- @return String	Formated full IPv6 ( X:X:X:X:: )
 -- @return Number	Prefix number (0-128)
  function Extract_IPv6_Add_Prefix(IPv6PRefix)
 	local Campos = {}

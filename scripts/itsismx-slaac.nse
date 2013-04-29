@@ -24,11 +24,11 @@ description=[[
 
 ---
 -- @usage
--- nmap -6 --script itsismx-Map4to6 --script-args newtargets
+-- nmap -6 --script itsismx-slaac --script-args newtargets
 --
 -- @output
 
-
+-- 
 -- @args newtargets  MANDATORY Need for the host-scaning to succes 
 -- @args vendors	 (Optional) One or more vendors of NIC if there is no one 
 --					  	the script will use "DELL" (arbytrary choice) except if vms 
@@ -46,19 +46,21 @@ description=[[
 --						"L"			:  Will search for  Linux  QEMU
 --						"WPVML"		:  Equivalent to the defualt option.
 --						"pVpD"		:  Equivalent to "P" ("P" override the others two)  
--- @args nbits		Number
--- @args compute	String  Will be the way to compute the last 24 bits.
---					 (Default) random	- Will calculate random address. Don't use if 
+-- @args nbits		(Optional  Number
+-- @args compute	(Optional) String  Will be the way to compute the last 24 bits.
+--						(Default) random	- Will calculate random address. Don't use if 
 --										  you plan to sweep more than 20 bits (even less) 
---							   brute 	- Will make a full sweep of the first IPv6 
+--						brute 		- Will make a full sweep of the first IPv6 
 --										  address to the last of the bits provided.
+-- @args vmipv4		(Optional) String  IPv4 address  used for calculate VMware VM serves.
+-- @args knownbits  (Optional) String	Binary values used for calculate VMware VM serves.
 -- @args itsismx-subnet 			IT's table/single  IPv6 address with prefix
 --	   (Ex. 2001:db8:c0ca::/48 or { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 } )
--- @args itsismx-IPv6ExMechanism 	Only care if you are using brute computing
+-- @args itsismx-IPv6ExMechanism 	(Optional) Only if you are using brute computing
 --      Nmap don't do math operations with IPv6  because the big value of those address. 
 --		We use own methods which are: 
 --			"number"	- 4 Numbers of 32 bits (Mathematical operations)
---			"sring"		- (Default) 128 Characters on string  (Pseudo Boolean operations)
+--			"string"		- (Default) 128 Characters on string  (Pseudo Boolean operations)
 --
 -- Version 1.0
 --	Updated 25/04/2013	- v1.3	- First version at full power! (and minor corrections)
@@ -837,7 +839,7 @@ local Prescanning = function ()
 	bSalida = false
 	if IPv6User == nil and IPv6Knowns == nil then 
 		tSalida.Error = "There is not IPv6 subnets to try to scan!. You can run a script for discovering or adding your own" ..  
-							"  with the arg: itsismx.PrefixesKnown."
+							"  with the arg: itsismx-subnet."
 		return bSalida, tSalida
 	end
 	
@@ -975,7 +977,7 @@ action = function ( host )
 		tOutput.warning = tSalida.Error 
 		
 		if bExito then
-			local a,b
+			--local a,b
 			--print( "INICIO")
 			--for a,  b in ipairs(tSalida.Nodos) do print( a .. " " .. b) end
 			
