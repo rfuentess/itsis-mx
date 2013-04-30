@@ -38,18 +38,19 @@ description=[[
 -- nmap.registry.itsismx.LowByt Is a global Registry (the final objective of this script)
 --   will have all the valid IPv6 address discovered with this Script
 -- 
--- @args itsismx-subnet IT's table/single  IPv6 address with prefix
---	   (Ex. 2001:db8:c0ca::/48 or { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 })
--- @args itsismx-IPv6ExMechanism 	Nmap don't do math operations with IPv6  because the 
---		 big value of those address. We use own methods which are: 
---			"number"	- 4 Numbers of 32 bits (Mathematical operations)
---			"sring"		- (Default) 128 Characters on string  (Pseudo Boolean operations)
--- @args itsismx-LowByt.nbits  Indicate how many Bites to consider
---     as low. Valid range: 3-16 (default 8 )
+-- @args itsismx-subnet 			(Optional)	IT's table/single  IPv6 address with prefix
+--	   								(Ex. 2001:db8:c0ca::/48 or { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 })
+-- @args itsismx-IPv6ExMechanism 	(Optional)Nmap don't do math operations with IPv6  because the 
+--		 							big value of those address. We use own methods which are: 
+--										"number"	- 4 Numbers of 32 bits (Mathematical operations)
+--										"sring"		- (Default) 128 Characters on string  (Pseudo Boolean
+--														operations)
+-- @args itsismx-LowByt.nbits  		Indicate how many Bites to consider
+--     								as low. Valid range: 3-16 (default 8 )
 -- @args itsismx-LowByt.OverrideLock  TRUE: Will get ALL the posibles hosts, even if
---		that mean brute force of 96 bits. FALSE: Will not exced from 16 bits.
---      By default it-s False (any  value different to Nil will be take 
---		as "TRUE", except FALSE
+--									that mean brute force of 96 bits. FALSE: Will not exced from 16 bits.
+--      							By default it's False (any  value different to Nil will be take 
+--									as "TRUE", except FALSE
 -- @args newtargets  MANDATORY Need for the host-scaning to succes 
 
 
