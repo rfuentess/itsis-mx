@@ -23,7 +23,7 @@ description=[[
 
 ---
 -- @usage
--- nmap -6 --script itsismx-Map4to6 --script-args newtargets,itsismx.Map4t6.IPv4Hosts=X.X.X.X
+-- nmap -6 --script itsismx-Map4to6 --script-args newtargets,itsismx-Map4t6.IPv4Hosts=X.X.X.X
 --
 -- @output
 -- Pre-scan script results:
@@ -40,7 +40,7 @@ description=[[
 -- nmap.registry.map6t4_PreHost is a global registry which will 
 -- 	used by the script for the host rule (detect new targets from previous)
 
--- @args itsismx.Map4t6.IPv4Hosts This must have at least one IPv4 Host  for the script
+-- @args itsismx-Map4t6.IPv4Hosts (optional) This must have at least one IPv4 Host  for the script
 --	 be able to work (Ex. 192.168.1.1 or { 192.168.1.1, 192.168.2.2 } ) or 
 --   Subnet Addres  (Ex. 192.168.1.0/24 or { 192.168.1.0/24, 192.168.2.0/24 } )
 --   Personally  I consider best idea use previous Nmap execution for get the IPv4 address 
@@ -153,7 +153,7 @@ local Prescanning = function ()
 	local tSalida = { Nodos={}, Error=""}
 	local IPv6_Subnet , IPv6_Add, IPv6_Prefix
 	local IPv6Host, sError = {}
-	local IPv4Subnets, IPv6User   = stdnse.get_script_args("itsismx.Map4t6.IPv4Hosts", 
+	local IPv4Subnets, IPv6User   = stdnse.get_script_args("itsismx-Map4t6.IPv4Hosts", 
 																"itsismx-subnet" )
 	local IPv6Knowns = nmap.registry.itsismx.PrefixesKnown
 	local iIndex

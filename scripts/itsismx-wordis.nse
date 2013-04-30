@@ -24,10 +24,22 @@ description=[[
 -- nmap -6 --script itsismx-slaac --script-args newtargets
 --
 -- @output
+--	Pre-scan script results:
+--	| itsismx-wordis:
+--	|_  itsismx-wordis.prerule:  Were added 4 nodes to the host scan phase
 
+--	Host script results:
+--	| itsismx-wordis:
+--	| Host online - IPv6 address SLAAC
+--	|_  2001:db8:c0ca::dead
 
+-- @args newtargets  				MANDATORY Need for the host-scaning to succes 
+-- @args itsismx-wordis.nsegments	(Optional) Number  - User can indicate exactly 
+--									how big the word must be (Segments of 16 bits) 
+-- @args itsismx-wordis.fillright	(Optional) With this argument the script will fill 
+--									remaining zeros to the right instead of left 
+--									(2001:db8:c0a:dead:: instead of 2001:db8:c0ca::dead)
 
--- @args newtargets  MANDATORY Need for the host-scaning to succes 
 -- @args itsismx-subnet 	(Optional)	IT's table/single  IPv6 address with prefix
 --	   (Ex. 2001:db8:c0ca::/48 or { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 } )
 
@@ -37,22 +49,34 @@ description=[[
 
 --- 
 -- Get a Prefix and for that one will add all the valids  words  we known.
-local CrearRangoHosts = function (Direccion, Prefijo, TablaPalabras ) 
+-- However two arguments from the user can affect how calculated the hosts.
+-- nsegments fix to pick a number of segments (by default is any segment
+-- enough small for be inside of the subnet prefix) and  fillright
+-- which allter where we place the remaining zeros (DEfault the left).
+-- @args Direccion		String	IPv6 address (Subnet)
+-- @args Prefijo		Number	Prefix value of Direccion
+-- @args TablaPalabras	Table containing all the elements to search.
+-- @return	Boolean		True if was succesufl the operation
+-- @return	Table		The table with the valid host for the prefix.
+-- @return	Error		Any error OR problem will be here (Default: "" not nil ) 
+local CrearRangoHosts = function (Direccion, Prefijo, TablaPalabras, User_Segs, User_Right ) 
 	
 	local IPv6Bin, Error   = ipOps.ip_to_bin (Direccion )
 	local Candidatos, sError = {} , ""
 	local Indice, Palabras, MaxRangoSegmentos, Filler, Host
 
-	local User_Segs, User_Right = stdnse.get_script_args("itsismx.wordis.nsegments","itsismx.wordis.fillright" )
+	
 	if IPv6Bin == nil then	--Niagaras!
 		return false, {}, Error
 	end
+	
+	--print(User_Right) 
 	
 	-- Its simple, we have (128 -  n ) / ( 16 )
 	-- The first part are how many bits are left to hosts portion 
 	-- the Second are the siz of the segments ( 16 bits). 
 	-- We need to use Ceiling because 4.3  don't have sense... 
-	if (User_Segs ~= nil  ) then
+	if (User_Segs == nil  ) then
 		MaxRangoSegmentos  = math.ceil( (128 - Prefijo)/16 )
 		User_Segs = false
 	else 
@@ -60,7 +84,7 @@ local CrearRangoHosts = function (Direccion, Prefijo, TablaPalabras )
 	end
 		
 	stdnse.print_debug(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-					":  Will be add " .. #TablaPalabras .. "  hosts for the subnet: " .. Direccion .. "/" .. Prefijo  )
+					":  Will be calculted " .. #TablaPalabras .. "  hosts for the subnet: " .. Direccion .. "/" .. Prefijo  )
 	
 	-- Palabras is a table with two elements Segmento & Binario
 	for  Indice , Palabras in ipairs(TablaPalabras ) do
@@ -73,14 +97,15 @@ local CrearRangoHosts = function (Direccion, Prefijo, TablaPalabras )
 			Filler = ""
 			--print("\t\t Filler Size " ..  #Filler )
 			while (Prefijo + #Filler + #Palabras.Binario  ) < 128 do
-				if (User_Right ~= nil ) then
-					Filler = "0" ..Filler
-				else
-					Filler = Filler .. "0"
-				end
+				Filler = "0" ..Filler
+			end
+					
+			if (User_Right ~= nil ) then
+				Host = IPv6Bin:sub(1, Prefijo)  .. Palabras.Binario .. Filler
+			else
+				Host = IPv6Bin:sub(1, Prefijo) .. Filler .. Palabras.Binario
 			end
 			
-			Host = IPv6Bin:sub(1, Prefijo) .. Filler .. Palabras.Binario
 			--print("\t\t Host (B) " ..  Host .. " " .. #Host) 
 			
 			-- We pass the binaries to valid IPv6
@@ -114,14 +139,14 @@ local LeerArchivo = function ( RangoSegmentos )
 	local Registro  = { ["Segmento"]=0, ["Binario"]="0"}
 	local sMatch = {}
 	--print(bBoolean )
-	print (Archivo )
+	--print (Archivo )
 	
 	if bBoolean ~= true  then
 		return nil , Archivo
 	end
 	
 	for index, reg in pairs(Archivo) do
-		print  ("[" ..  index .. "]  "  .. reg)
+		--print  ("[" ..  index .. "]  "  .. reg)
 		
 		-- The structure is very well'known:  Digit  Word  Binary
 		sMatch = {}
@@ -156,16 +181,18 @@ local LeerArchivo = function ( RangoSegmentos )
 
 end
 
-
+---
 --  This is  very simple actually, we get the info we need from the user and other scripts
---- then we add them to our file! (So easy that seem we need to make them obscure)
+-- then we add them to our file! (So easy that seem we need to make them obscure)
 local Prescanning = function ()
 	local bSalida, tSalida = false , { Nodos={}, Error=""}
 	local IPv6PRefijoUsuario  = stdnse.get_script_args("itsismx-subnet")
 	local IPv6PRefijoScripts  = nmap.registry.itsismx.PrefixesKnown
 	local  TablaPalabras, sError, IPv6refijosTotales  = {}, "",{}
 	local PrefixAux, Prefijo,  Direccion
-	local Hosts = {}
+	local Hosts, Nodo, Indice = {}
+	local User_Segs, User_Right = stdnse.get_script_args("itsismx-wordis.nsegments","itsismx-wordis.fillright" )
+	
 	-- First we get the info from known prefixes because we need those Prefixes
 	stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 			": Begining the Pre-scanning work... "    )
@@ -187,7 +214,7 @@ local Prescanning = function ()
 	
 	if IPv6PRefijoScripts ~= nil then
 		stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-				"	Number of Prefixes Known from other sources: " .. #IPv6PRefijoScripts    )		
+				":	Number of Prefixes Known from other sources: " .. #IPv6PRefijoScripts    )		
 		for _ , PrefixAux in ipairs(IPv6PRefijoScripts) do 
 			table.insert(IPv6refijosTotales,PrefixAux )	
 		end		
@@ -196,11 +223,11 @@ local Prescanning = function ()
 	if IPv6PRefijoUsuario ~= nil then
 		if type(IPv6PRefijoUsuario) ==  "string" then 
 			stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-				"	Number of Prefixes Known from other sources: 1 "     )
+				":	Number of Prefixes Known from other sources: 1 "     )
 			table.insert(IPv6refijosTotales,IPv6PRefijoUsuario )
 		elseif type(IPv6PRefijoUsuario) ==  "table" then
 			stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-				"	Number of Prefixes Known from other sources: " .. #IPv6PRefijoUsuario    )		
+				":	Number of Prefixes Known from other sources: " .. #IPv6PRefijoUsuario    )		
 			for _ , PrefixAux in ipairs(IPv6PRefijoUsuario) do -- This is healthy for my mind...
 				table.insert(IPv6refijosTotales,PrefixAux )	
 			end	
@@ -208,20 +235,67 @@ local Prescanning = function ()
 			
 	end
 	
-	stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..  
-			 " Will be calculated a total of " ..  #IPv6refijosTotales *  #TablaPalabras .. " hosts") 
+	-- stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..  
+			 -- " Will be calculated a total of " ..  #IPv6refijosTotales *  #TablaPalabras .. " hosts") 
 	
 	-- We begin to explore all thoses prefixes and retrieve our work here
 	for _, PrefixAux in ipairs(IPv6refijosTotales) do
 		 Direccion, Prefijo = itsismx.Extract_IPv6_Add_Prefix(PrefixAux)
-		 bSalida, Hosts, sError  = CrearRangoHosts (Direccion, Prefijo, TablaPalabras ) 
+		 bSalida, Hosts, sError  = CrearRangoHosts (Direccion, Prefijo, TablaPalabras, User_Segs, User_Right ) 
+		 
+		 if bSalida ~= true then
+			stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				":	There was a error for the prefix: " .. PrefixAux .. " Message:"  ..  sError )
+		 end
+		 
+		 if sError ~= "" then -- Not all the error are fatal for the script.
+			tSalida.Error = tSalida.Error .. "\n" .. sError
+		 end
+		 
+		 -- Now we add the discovered hosts to the final list. 
+		 for Indice, Nodo in ipairs(Hosts) do
+			table.insert( tSalida.Nodos, Nodo)
+		 end
 	end
 	
 	
-	
+	return true, tSalida
 	
 end
 
+---
+-- This a gently wind of the script, will save the host to the final register (The 
+--  only purpose of this nasty script)
+local Hostscanning = function( host)
+	local tSalida = { Nodos=nil, Error=""}
+	local aux
+	
+	-- Only for the braves ... 
+	stdnse.print_debug(4, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+			": Begining the Host-scanning results... " )    
+	
+	-- Should be impossible, but better be sure and cover this
+	if nmap.registry.itsismx == nil then 
+		tSalida.Error = "You must first initialize the global register Itsismx (There is a global function for that!)"
+		return false, tSalida
+	end	
+	
+	aux = nmap.registry.itsismx.wordis
+	if aux == nil then 
+		tSalida.Error = "The global register Itsismx wasn't initialzed correctly (There is a global function for that!)"
+		return false, tSalida
+	end
+	
+	--We use the aux for be able to add a new element to the table
+	aux[#aux +1] = host.ip
+	nmap.registry.itsismx.wordis = aux
+	
+	tSalida.Nodos = host.ip 	-- This rule ALWAY IS ONE ELEMENT!
+	
+	return true, tSalida
+end
+
+---
 -- The script need to be working with IPv6
 prerule = function() return ( nmap.address_family() == "inet6") end
 
@@ -229,28 +303,14 @@ prerule = function() return ( nmap.address_family() == "inet6") end
 -- We need to confirm the host is one of the previous pre-scanning phase nodes  
 -- and return true.
 hostrule = function(host) 
-	--Debug
-	 -- local key, elemento 
-	  -- for key, elemento in pairs(nmap.registry.args) do
-		  -- print(key, elemento)
-	 -- end
-
 	local  Totales, Objetivo, bMatch, sMatch  = nmap.registry.wordis_PreHost	
-	
-	
-	-- print(Totales)
+
 	if Totales == nil  then return false end
-	--print("Totales:" .. #Totales)
-	
-	-- for key, elemento in pairs(Totales) do
-		 -- print(key, elemento)
-	 -- end
 	
 	for _, Objetivo in pairs( Totales ) do
 		
 		bMatch, sMatch = ipOps.compare_ip(host.ip, "eq", Objetivo)
 		if bMatch == nil then
-			--print (sMatch)
 			stdnse.print_debug(1, "\t hostrule  had a error with " ..   
 								host.ip .. "\n Error:" .. sMatch )
 		elseif bMatch then
@@ -305,5 +365,20 @@ action = function(host)
 		
 		end
 	end
+	
+	if SCRIPT_TYPE== "hostrule" then 
+		bExito , tSalida = Hostscanning(host)
+		 tOutput.warning = tSalida.Error
+		 
+		 if ( bExito ~= true) then
+			stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+								" Error: " .. tSalida.Error)
+		 end
+		 
+		 tOutput.name = "Host online - IPv6 address SLAAC"
+		table.insert(tOutput,tSalida.Nodos) --This will be alway one single host.
+	end
+	
+	return stdnse.format_output(bExito, tOutput);
 	
 end
