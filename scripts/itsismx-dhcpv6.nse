@@ -296,7 +296,7 @@ end
 -- @args 	String	A string representing HEXADECIMAL data (The SOLICIT message)
 -- @args	Table	A table of Subnetworks we want to test.
 -- @return	String  A string representing HEXADECIMAL data (Ready for pack on raw bytes)
-Spoof_Relay_Forwarder = function ( Source, SOLICIT , Subnets )
+local Spoof_Relay_Forwarder = function ( Source, SOLICIT , Subnets )
 	
 	-- P. 50, 20.1.1  En el mecanismo real, si un nodo solicita IPv6 el agente Relay 
 	-- anexa su prefijo global o de sitio. ESTO ES LO QUE HAREMOS SPOOFING. 
@@ -348,19 +348,77 @@ Spoof_Relay_Forwarder = function ( Source, SOLICIT , Subnets )
 end
 ---
 -- The script need to be working with IPv6 
-prerule = function() return ( nmap.address_family() == "inet6") end
+prerule = function()  
+  if ( not(nmap.is_privileged()) ) then
+		stdnse.print_verbose("%s not running for lack of privileges.", SCRIPT_NAME)
+		return false
+	end 
+ 
+  if ( not(nmap.address_family() == "inet6") ) then
+		stdnse.print_verbose("%s Need to be executed for IPv6.", SCRIPT_NAME)
+		return false
+	end
+	
+  return true
+end
 
 local Enviar_Mensaje = function (  IPv6src, IPv6dst, Protocolo , Prtsrc, Prtdst , Mensaje)
 	local Bytes
 	Bytes = bin.pack("H" , Mensaje )
 	local Interfaz = nmap.get_interface()
-	-- local PuertoServidor = {"number", "protocol"}
+	
 	
 	-- Seem broadcast-dhcp-discover.nse a good idea to search
 	-- however , this don't seem to be working with Windows
 	-- even when Nmap is launched with full privileges.
 	
+	--  targets-ipv6-multicast-mld.nse uses Paclet Lua Class  which work
+	-- with raw packetes, however I don't find on the Lua file if is possible
+	-- to add Data to custom UDP packets.
+	-- local condvar = nmap.condvar(results) -- This is for multithreadign.. (not implemented yet)
 	
+	--local src_mac = packet.mactobin("00:D0:BB:00:00:01") -- (Spoofed) Cisco device!
+	--local src_ip6 = packet.ip6tobin(IPv6src)
+	local src_mac = packet.mactobin("60:eb:69:af:2b:83 ")
+	local src_ip6 = packet.ip6tobin("fe80::62eb:69ff:feaf:2b83")
+	local dst_mac = packet.mactobin("33:33:00:00:00:01")
+	local dst_ip6 = packet.ip6tobin(IPv6dst)
+	local gen_qry = packet.ip6tobin("::")
+
+	local dnet = nmap.new_dnet()
+	local pcap = nmap.new_socket()
+	
+	dnet:ethernet_open("eth0") -- Uh we need to provided this?
+	--pcap:pcap_open(if_nfo.device, 1500, false, "ip6[40:1] == 58") -- this is for AFTER sending the packet
+	
+	local probe = packet.Frame:new()
+	probe.mac_src = src_mac
+	probe.mac_dst = dst_mac
+	probe.ip_bin_src = src_ip6
+	probe.ip_bin_dst = dst_ip6
+	
+	probe.ip6_tc = 0 -- Traffic Class
+	probe.ip6_fl = 0 -- Flow Label 
+	probe.ip6_hlimit = 3 -- Hop Limit (This should be variable)
+	probe.ip6_nhdr = 17 -- 17 es UDP 
+	-- Next header is a UDP
+	
+	probe.udp_set_sport = Prtsrc
+	probe.udp_set_dport = Prtdst
+	
+	-- Now the secret which is not declare on the Packet.lua Library... 
+	-- The Payload method/function/whatever fuse the data
+	-- togheter the packet
+	probe.udp_count_checksum()  -- just testing...
+	probe.udp_set_length = Bytes
+	
+	
+	--UDP packet ready...
+	
+	probe:build_ipv6_packet() -- This should assemble the IPv6
+	probe:build_ether_frame() -- Finally the Frame
+
+	dnet:ethernet_send(probe.frame_buf) -- And we send everything!
 	
 end
 ---
@@ -389,7 +447,7 @@ action = function()
 	print ("Relay Message ( " .. #Relay/2 .. " octetos): " .. Relay )
 	-- We create a RAW Packet!
 	--  "DUID", "Type", "IAID", "LinkAdd"}
-	--Enviar_Mensaje( Host["LinkAdd"], "FF02::1:2", "udp", 546,547, Mensaje )
+	Enviar_Mensaje( Host["LinkAdd"], "FF02::1:2", "udp", 546,547, Mensaje )
 	
 	return stdnse.format_output(bExito, tOutput);	
 	--return  tOutput
