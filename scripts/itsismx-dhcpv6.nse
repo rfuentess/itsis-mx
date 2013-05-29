@@ -119,6 +119,20 @@ end
 --      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 ---
+-- Will generate a  Relay Message Option 
+-- RFC 3315 22.10. Relay Message Option p. 70
+-- @args	String	The Spoofed message to add.
+-- @return  String 	Hexadecimal bytes representing this DHCP option.
+local Generar_Option_Relay = function ( Mensaje) 
+	
+	local Option_Code , Option_Len = "0009"
+	Option_Len = itsismx.DecToHex( #Mensaje/2 )
+	while #Option_Len < 4 do Option_Len = "0" .. Option_Len end 
+	
+	return Option_Code .. Option_Len .. Mensaje
+end
+
+---
 -- Will generate a  IA_TA Option 
 -- RFC 3315 22.2. Client Identifier Option p. 70
 -- @return  String 	Hexadecimal bytes representing this DHCP option.
@@ -258,7 +272,7 @@ local Spoof_Host_Solicit = function ()
 	
 	--TIP: The client SHOULD include an Option Request option 
 	-- AKA: IGNORE IT!!!
-	
+	print("TransactionID: " .. TransactionID ) 
 	print("ClientID: " .. ClientID ) 
 	print("IA_TA: " .. IA_TA ) 
 	print("Time: " .. Time ) 
@@ -275,13 +289,78 @@ local Spoof_Host_Solicit = function ()
 	
 	return Solicit, Host,  Error
 end
+
+---
+-- Will return a Relay-Forward message based on.... 
+-- @args 	String	A string representing IPv6 Source of the spoofed host 
+-- @args 	String	A string representing HEXADECIMAL data (The SOLICIT message)
+-- @args	Table	A table of Subnetworks we want to test.
+-- @return	String  A string representing HEXADECIMAL data (Ready for pack on raw bytes)
+Spoof_Relay_Forwarder = function ( Source, SOLICIT , Subnets )
+	
+	-- P. 50, 20.1.1  En el mecanismo real, si un nodo solicita IPv6 el agente Relay 
+	-- anexa su prefijo global o de sitio. ESTO ES LO QUE HAREMOS SPOOFING. 
+	-- This message will be " relay forwarder" from a spoofed agent to another REAL 
+	-- relay agent ( hop-count must be 2-3 or user value)
+	
+	-- 	RFC 3315 7. Relay Agent/Server Message Formats P. 17
+--	--   There are two relay agent messages, which share the following format:
+--
+--       0                   1                   2                   3
+--       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+--      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+--      |    msg-type   |   hop-count   |                               |
+--      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               |
+--      |                                                               |
+--      |                         link-address                          |
+--      |                                                               |
+--      |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
+--      |                               |                               |
+--      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               |
+--      |                                                               |
+--      |                         peer-address                          |
+--      |                                                               |
+--      |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
+--      |                               |                               |
+--      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               |
+--      .                                                               .
+--      .            options (variable number and length)   ....        .
+--      |                                                               |
+--      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	
+	local msg_type, hopcount, linkAdd, peerAdd, Options
+	
+	
+	msg_type = "0C" -- msg-type is 12 ( 0x0C)
+	hopcount = "02" -- Should be under user control too
+	linkAdd = "20010db8c0ca00000000000000000001" -- THIS IS WHAT WE WANT !!!!
+	peerAdd  = Source
+	Options = Generar_Option_Relay( SOLICIT )
+	
+	print ("msg_type Message ( " .. #msg_type/2 .. " octetos): " .. msg_type )
+	print ("hopcount Message ( " .. #hopcount/2 .. " octetos): " .. hopcount )
+	print ("linkAdd Message ( " .. #linkAdd/2 .. " octetos): " .. linkAdd )
+	print ("peerAdd Message ( " .. #peerAdd/2 .. " octetos): " .. peerAdd )
+	print ("Options Message ( " .. #Options/2 .. " octetos): " .. Options )
+	
+	
+	return msg_type .. hopcount .. linkAdd ..  peerAdd .. Options
+end
 ---
 -- The script need to be working with IPv6 
 prerule = function() return ( nmap.address_family() == "inet6") end
 
-local Enviar_Mensaje = function (  IPv6src, IPv6dst, Protocolo , Puerto , Mensaje)
+local Enviar_Mensaje = function (  IPv6src, IPv6dst, Protocolo , Prtsrc, Prtdst , Mensaje)
 	local Bytes
 	Bytes = bin.pack("H" , Mensaje )
+	local Interfaz = nmap.get_interface()
+	-- local PuertoServidor = {"number", "protocol"}
+	
+	-- Seem broadcast-dhcp-discover.nse a good idea to search
+	-- however , this don't seem to be working with Windows
+	-- even when Nmap is launched with full privileges.
+	
+	
 	
 end
 ---
@@ -299,16 +378,18 @@ action = function()
 	print("HEY!")
 	itsismx.Registro_Global_Inicializar("dhcpv6") -- We prepare our work!
 	
-	local Mensaje, Host, Error
+	local Mensaje, Host, Error, Relay
 	
 	Mensaje, Host, Error	= Spoof_Host_Solicit()
 	
 	print ("SOCICIT Message ( " .. #Mensaje/2 .. " octetos): " .. Mensaje )
-	print ("SOLICIT Binary lenght: " ..  #Bytes)
 	
+	Relay = Spoof_Relay_Forwarder ( Host["LinkAdd"] , Mensaje , nil )
+	
+	print ("Relay Message ( " .. #Relay/2 .. " octetos): " .. Relay )
 	-- We create a RAW Packet!
 	--  "DUID", "Type", "IAID", "LinkAdd"}
-	Enviar_Mensaje( Host["LinkAdd"], "FF02::1:2", "udp", 547, Mensaje )
+	--Enviar_Mensaje( Host["LinkAdd"], "FF02::1:2", "udp", 546,547, Mensaje )
 	
 	return stdnse.format_output(bExito, tOutput);	
 	--return  tOutput
