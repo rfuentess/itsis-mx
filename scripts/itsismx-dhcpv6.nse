@@ -216,7 +216,7 @@ end
 -- Will retrun a host Solicit Message based on chapter 17.1.1 Creation of solict Messages
 -- p. 31.
 -- @return 	String	A string representing HEXADECIMAL data (Ready for pack on raw bytes)
--- @return	Table	Tuple <DUID, Type, IAID >
+-- @return	Table	Tuple <DUID, Type, IAID, LinkAdd >
 -- @return 	String	Nil if there is no error, otherwise return a error message.
 local Spoof_Host_Solicit = function () 
 
@@ -362,70 +362,98 @@ prerule = function()
   return true
 end
 
-local Enviar_Mensaje = function (  IPv6src, IPv6dst, Protocolo , Prtsrc, Prtdst , Mensaje)
-	local Bytes
-	Bytes = bin.pack("H" , Mensaje )
-	local Interfaz = nmap.get_interface()
-	
-	
-	-- Seem broadcast-dhcp-discover.nse a good idea to search
-	-- however , this don't seem to be working with Windows
-	-- even when Nmap is launched with full privileges.
-	
-	--  targets-ipv6-multicast-mld.nse uses Paclet Lua Class  which work
-	-- with raw packetes, however I don't find on the Lua file if is possible
-	-- to add Data to custom UDP packets.
-	-- local condvar = nmap.condvar(results) -- This is for multithreadign.. (not implemented yet)
-	
-	--local src_mac = packet.mactobin("00:D0:BB:00:00:01") -- (Spoofed) Cisco device!
-	--local src_ip6 = packet.ip6tobin(IPv6src)
-	local src_mac = packet.mactobin("60:eb:69:af:2b:83 ")
-	local src_ip6 = packet.ip6tobin("fe80::62eb:69ff:feaf:2b83")
-	local dst_mac = packet.mactobin("33:33:00:00:00:01")
-	local dst_ip6 = packet.ip6tobin(IPv6dst)
-	local gen_qry = packet.ip6tobin("::")
+--- 
+-- Will create a spoofed message for transmit (any message)  and inmediatly 
+-- will hear for a answer (to be selected by a filter) and will return it.
+local Transmision_Recepcion = function (  IPv6src, IPv6dst , Prtsrc, Prtdst , Mensaje, Tcpdumb_Filter)
+	local Bytes --, ToTransmit
+	Bytes = bin.pack("H" , "0000000000000000" .. Mensaje ) -- those extra bits are for being overwritten
 
+	local Interfaz = nmap.get_interface()
+	local Bool
+	
 	local dnet = nmap.new_dnet()
 	local pcap = nmap.new_socket()
 	
-	dnet:ethernet_open("eth0") -- Uh we need to provided this?
+	
+	
+	-- local condvar = nmap.condvar(results) -- This is for multithreadign.. (not implemented yet)
+	
+	local src_mac = packet.mactobin("00:D0:BB:00:00:01") -- (Spoofed) Cisco device!
+	local dst_mac = packet.mactobin("33:33:00:00:00:01")
+	
+	--local src_ip6 = packet.ip6tobin(IPv6src)
+	--local src_ip6 = packet.ip6tobin("fe80::62eb:69ff:feaf:2b83")
+	local src_ip6 = bin.pack("H", IPv6src) --We already have it on "bytes"
+	local dst_ip6 = packet.ip6tobin(IPv6dst)
+
+	-- We open all the elements we are going to need
+	
+	-- dnet:ip_open()
+	dnet:ethernet_open("eth0")
+	
+	-- Before we begin to send packets is a good idea turn on the Pcap 
+	-- for retrieve our own packets (That is don't lost our message because we turn on too late).
 	--pcap:pcap_open(if_nfo.device, 1500, false, "ip6[40:1] == 58") -- this is for AFTER sending the packet
 	
+	-- From zero... We need a UDP datagram, then a IP packet  and finally a Ethernet Frame... 
+	-- UDP and IP are declared inside of the "Packet class" on packet.lua
+	
+	local Spoofed = packet.Packet:new()
+	
+	-- Ejem src, dst, nx_hdr, payload, h_limit, t_class, f_label	
+	-- IPv6 Packet with nex Header as UDP, Hoplimit 3, and Traffic class
+	-- and Flow label set to zero.
+	-- payload ITS dangerous because will place all the data
+	-- Howeve,r this data NEED TO HAVE FIRST THE UDP otherwise
+	-- the UDP part will overwritten it... 
+	-- The Easy solution: Add 4 bytes more to our data.
+      
+	Spoofed:build_ipv6_packet(src_ip6,dst_ip6,17, Bytes ,3,0,0)
+	Bool = Spoofed:ip6_parse(false)
+	--print("Parse IPv6: " .. tostring(Bool))
+	
+	--We work the UDP...
+	Spoofed:udp_parse(false) --Now the UDP ...
+	print("Parse UDP: " .. tostring(Bool))
+	Spoofed:udp_set_sport(Prtsrc) 
+	Spoofed:udp_set_dport(Prtdst)
+	Spoofed:udp_set_length(#Bytes) 
+	Spoofed.ip_p = 17 -- Seem that udp_count_checksum() wasn't update for IPv6...
+	Spoofed:udp_count_checksum()
+	
+	--print("UDP PAcket: " .. Spoofed:udp_tostring())
+	
+	-- En teoria ya arme el paquete UDP, sigue completar IPv6
+	Spoofed:count_ipv6_pseudoheader_cksum()
+	
+	-- We already have everything, however, we can spoof  the MAC address
+	-- This part of packet.lua is... CRAP we ignore the "class"
+	-- and write the info directly to our Frame to send.
 	local probe = packet.Frame:new()
-	probe.mac_src = src_mac
 	probe.mac_dst = dst_mac
-	probe.ip_bin_src = src_ip6
-	probe.ip_bin_dst = dst_ip6
+	probe.mac_src = src_mac
+	probe.ether_type = string.char(0x86, 0xdd)
+	probe.buf = Spoofed.buf
+	--probe.buf = self.mac_dst..self.mac_src..self.ether_type..self.buf
+	--ToTransmit = probe.build_ether_frame(dst_mac , src_mac, string.char(0x86, 0xdd)  ,Spoofed.buf)
+	--Spoofed.
 	
-	probe.ip6_tc = 0 -- Traffic Class
-	probe.ip6_fl = 0 -- Flow Label 
-	probe.ip6_hlimit = 3 -- Hop Limit (This should be variable)
-	probe.ip6_nhdr = 17 -- 17 es UDP 
-	-- Next header is a UDP
-	
-	probe.udp_set_sport = Prtsrc
-	probe.udp_set_dport = Prtdst
-	
-	-- Now the secret which is not declare on the Packet.lua Library... 
-	-- The Payload method/function/whatever fuse the data
-	-- togheter the packet
-	probe.udp_count_checksum()  -- just testing...
-	probe.udp_set_length = Bytes
-	
-	
-	--UDP packet ready...
-	
-	probe:build_ipv6_packet() -- This should assemble the IPv6
-	probe:build_ether_frame() -- Finally the Frame
 
-	dnet:ethernet_send(probe.frame_buf) -- And we send everything!
+	--dnet:ip_send(Spoofed.buf)
+	dnet:ethernet_send(dst_mac .. src_mac .. string.char(0x86, 0xdd)  .. Spoofed.buf)
+
+	-- Finally we close everything we already openeed
+	dnet:ip_close()
+	dnet:ethernet_close()
 	
 end
+
 ---
 -- This run only as pre-scanning phase.
 action = function()
 
-	math.randomseed ( nmap.clock_ms() )
+	--math.randomseed ( nmap.clock_ms() )
 	--Vars for created the final report
 	
 	local tOutput = stdnse.output_table()
@@ -440,14 +468,14 @@ action = function()
 	
 	Mensaje, Host, Error	= Spoof_Host_Solicit()
 	
-	print ("SOCICIT Message ( " .. #Mensaje/2 .. " octetos): " .. Mensaje )
+	--print ("SOCICIT Message ( " .. #Mensaje/2 .. " octetos): " .. Mensaje )
 	
 	Relay = Spoof_Relay_Forwarder ( Host["LinkAdd"] , Mensaje , nil )
 	
-	print ("Relay Message ( " .. #Relay/2 .. " octetos): " .. Relay )
+	--print ("Relay Message ( " .. #Relay/2 .. " octetos): " .. Relay )
+	
 	-- We create a RAW Packet!
-	--  "DUID", "Type", "IAID", "LinkAdd"}
-	Enviar_Mensaje( Host["LinkAdd"], "FF02::1:2", "udp", 546,547, Mensaje )
+	Transmision_Recepcion( Host.LinkAdd, "FF02::1:2",  546,547, Relay )
 	
 	return stdnse.format_output(bExito, tOutput);	
 	--return  tOutput
