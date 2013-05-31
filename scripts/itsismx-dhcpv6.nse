@@ -32,6 +32,13 @@ description = [[
 --		NOTE: If one or more are discovered as valid sub-network will be added to a special
 --		registry for all the other scripts (words, slaac, map4to6, mac-prefixes) to be used.
 
+-- @args itsismx-dhcpv6.TimeToBeg	It-s a number. 16 bits expressed in hundreths of a second.
+--		When we are sending solicits, the clients indicate  ow much time had spent
+--		trying to get a Address, this make some server and relay agents give ive preference
+--		 to solicits with higher Time
+--@args	itsismx-dhcpv6.Company		String 6 hexadecimal.  By defualt the script will generate
+--		random hosts from a DELL OUI (24B6FD). With this argument the user can provided 
+--		a specific OUI. However, the last 24 bits will still be generate randomly.
 -- Version 0.2
 -- 	Created 27/05/2013	- v0.1 - created by Ing. Raul Fuentes <ra.fuentess.sam@gmail.com>
 --
@@ -72,11 +79,9 @@ Generar_DUID = function ( )
 	-- midnight (UTC) January 1, 2000  modulo 2^32
 	-- WE have a little problem there... Probably this is a EPOCH  Unix: 01/01/1970 ... 
 	if ( stime > 946684800) then  -- Ok, maybe on 17 years this is going to be fatal error
-		-- We need to remove 30 years of the time from that lecture... OR give a arbitary 
+		-- We need to remove 30 years of the time from that lecture... or give a arbitrary value 
 		-- epochtime = ((((((ts.Days * 24) + ts.Hours) * 60) + ts.Minutes) * 60) + ts.Seconds);
-
 		stime = stime - 946684800 -- For now, we only substract 30 years (more or less)
-		--print("UNIX EPOCH!") 
 	end
 	
 	-- We need to conver the number to bytes ( 4 bytes) 
@@ -84,9 +89,22 @@ Generar_DUID = function ( )
 	while  #stime < 8 do  stime = "0" .. stime end
 	
 	--  we are using a typical DELL PC (By default)
-	-- Future work can give a custom part here. (Don' forget FE80::/10 )
-	-- and the constant FFFE for fill the 64 bits
-	LinkAdd = "FE80000000000000" .. "24B6FD"  .. "FFFE" 
+	-- Future work can give a custom full host   here. (Don' forget FE80::/10 )
+	local Ghost = stdnse.get_script_args( "itsismx-dhcpv6.Company" )
+	
+      	if Ghost ~= nil then
+	   -- We need to be sure the OUI be a valid 
+	   if itsismx.Is_Valid_OUI(Ghost) then
+	      LinkAdd = "FE80000000000000" .. Ghost  .. "FFFE"
+	   else
+	      LinkAdd = "FE80000000000000" .. "24B6FD"  .. "FFFE" 
+	      stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				"DUID-LLT ERROR  " .. " was provided a INVALID OUI value and was ignored. " )
+	   end
+	else 
+	  LinkAdd = "FE80000000000000" .. "24B6FD"  .. "FFFE" 
+	end
+	
 	-- The last 24 bits will be random (just avoid be so hussy)
 	--math.randomseed ( nmap.clock_ms() )
 	nRand = itsismx.DecToHex( math.random( 16777216 ) )-- 2^24
@@ -103,7 +121,7 @@ Generar_DUID = function ( )
 	--print("\t LinkAdd: " .. #LinkAdd/2)
 	
 	stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-				".DUID: " .. " New DUID: " ..   DUID  )
+				"DUID-LLT: " .. " New DUID: " ..   DUID  )
 				
 	return DUID , LinkAdd
 end 
@@ -152,6 +170,13 @@ local Generar_Option_ClientID =  function ()
 	--print("\t Option-Code: " .. #Option_Code/2)
 	--print("\t Option_Len: " .. #Option_Len/2)
 	--print("\t DUID: " .. #DUID/2)
+	
+	stdnse.print_debug(4, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+			".Solicit.Elapsed Time: " .. 
+			" \n\t --[[Option]]-Code: " ..   Option_Code .. 
+			" \n\t Option Lenght: " ..   Option_Len .. 
+			" \n\t DUID: " ..   DUID  )
+	
 	ClientID = Option_Code .. Option_Len .. DUID
 	
 	return ClientID, DUID , LinkAdd
@@ -190,6 +215,13 @@ local Generar_Option_IA_TA = function()
 	--print("\t Option_Len: " .. #Option_Len/2)
 	--print("\t IAID: " .. #IAID/2)
 	--print("\t Options: " .. #Options/2)
+	stdnse.print_debug(4, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				".Solicit.Elapsed Time: " .. 
+				" \n\t Option-Code: " ..   Option_Len .. 
+				" \n\t Option Lenght: " ..   Option_Len .. 
+				" \n\t IAID: " ..   #IAID .. 
+				" \n\t Options: " ..   Options)
+	
 	
 	return IA_TA , IAID
 end
@@ -205,16 +237,26 @@ local Generar_Option_Elapsed_Time = function()
 	-- TIP: elapsed-time field is set to 0 in the first message in the message
 	-- TIP: unsigned, 16 bit integer
 		
-	-- Future work: Generate bigger "time" fields  for seem to  "beg" for a
+	-- Generate bigger "time" fields  for seem to be "begging" for a quick 
 	-- answer.
-	--print("\t Option-Code: " .. #option_code/2)
-	--print("\t Option_Len: " .. #option_len/2)
-	--print("\t elapsed: " .. #elapsed/2)
+	local TimetoBeg = stdnse.get_script_args( "itsismx-dhcpv6.TimeToBeg" )
+	
+	if TimetoBeg ~= nil  then
+	    elapsed = itsismx.DecToHex(TimetoBeg )
+	    while #elapsed < 4 do elapsed = "0" .. elapsed end
+	end
+	
+	stdnse.print_debug(4, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				".Solicit.Elapsed Time: " .. 
+				" \n\t Option-Code: " ..   option_code .. 
+				" \n\t Option Lenght: " ..   option_len .. 
+				" \n\t Time elapsed: " ..   elapsed  )
+	
 	return option_code .. option_len .. elapsed
 end
 ---
--- Will retrun a host Solicit Message based on chapter 17.1.1 Creation of solict Messages
--- p. 31.
+-- Will retrun a  RANDOM host Solicit Message based on chapter 17.1.1 Creation of 
+-- solict Messages p.31.  We don't care too much on the node to create.
 -- @return 	String	A string representing HEXADECIMAL data (Ready for pack on raw bytes)
 -- @return	Table	Tuple <DUID, Type, IAID, LinkAdd >
 -- @return 	String	Nil if there is no error, otherwise return a error message.
@@ -249,6 +291,7 @@ local Spoof_Host_Solicit = function ()
 	local TransactionID, DUID, IAID, LinkAdd = 0
 	local ClientID, IA_TA, Time
 	local Host = { "DUID", "Type", "IAID", "LinkAdd"}
+
 -- RFC 3315, 15.1 P. 27
 --   The "transaction-id" field holds a value used by clients and servers
 --   to synchronize server responses to client messages.  
@@ -262,9 +305,6 @@ local Spoof_Host_Solicit = function ()
 	-- Counter or Random ? That is the question...
 	TransactionID = itsismx.DecToHex( math.random( 16777216 ) ) -- 2^24
 	while #TransactionID < 6 do TransactionID = "0" .. TransactionID  end 
-	
-	stdnse.print_debug(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-				".Solicit: " .. " New SOLICIT Message. ID: " ..   TransactionID  )
 				
 	ClientID, DUID, LinkAdd = Generar_Option_ClientID()
 	IA_TA, IAID = Generar_Option_IA_TA ()
@@ -272,16 +312,32 @@ local Spoof_Host_Solicit = function ()
 	
 	--TIP: The client SHOULD include an Option Request option 
 	-- AKA: IGNORE IT!!!
-	print("TransactionID: " .. TransactionID ) 
-	print("ClientID: " .. ClientID ) 
-	print("IA_TA: " .. IA_TA ) 
-	print("Time: " .. Time ) 
+
+	stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				".Solicit: " .. " New SOLICIT Message. ID: " ..   TransactionID  )
+	stdnse.print_debug(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				".Solicit: " .. " Client ID: " ..   ClientID  )
+				
+	stdnse.print_debug(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				".Solicit: " .. " IA-TA : " ..   IA_TA  )
+	stdnse.print_debug(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				".Solicit: " .. " Time: " ..   Time  )
+	
+	--print("TransactionID: " .. TransactionID ) 
+	--print("ClientID: " .. ClientID ) 
+	--print("IA_TA: " .. IA_TA ) 
+	--print("Time: " .. Time ) 
 	
 	-- Now we update the Tuple for this host
 	Host.DUID = DUID
-	Host.Type = "temporary" -- This script is using only IA_TA
+	Host.Type = "temporary" -- For this version we're  using only IA_TA
 	Host.IAID = IAID
 	Host.LinkAdd = LinkAdd
+	
+	stdnse.print_debug(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				".Solicit: " .. " (G)Host - Link-Address: " ..   Host.LinkAdd .. --
+				" type of request: " .. Host.Type  .. 
+				"\n DUID: " ..  Host.DUID .. "\n IAID: "  .. Host.IAID )
 	
 	-- A this point we should have a valid SOLICIT Message... for this "alpha" verison 
 	-- we are  going to have blind faith
@@ -294,9 +350,10 @@ end
 -- Will return a Relay-Forward message based on.... 
 -- @args 	String	A string representing IPv6 Source of the spoofed host 
 -- @args 	String	A string representing HEXADECIMAL data (The SOLICIT message)
--- @args	Table	A table of Subnetworks we want to test.
+-- @args	String  IPv6 Subnet which we want to confirm to exist.
 -- @return	String  A string representing HEXADECIMAL data (Ready for pack on raw bytes)
-local Spoof_Relay_Forwarder = function ( Source, SOLICIT , Subnets )
+-- @return 	Error	If there is a error will return the reason, otherwise nil
+local Spoof_Relay_Forwarder = function ( Source, SOLICIT , Subnet )
 	
 	-- P. 50, 20.1.1  En el mecanismo real, si un nodo solicita IPv6 el agente Relay 
 	-- anexa su prefijo global o de sitio. ESTO ES LO QUE HAREMOS SPOOFING. 
@@ -329,7 +386,7 @@ local Spoof_Relay_Forwarder = function ( Source, SOLICIT , Subnets )
 --      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	
 	local msg_type, hopcount, linkAdd, peerAdd, Options
-	
+	local Relay, sError, sUnicast, Address, Prefix
 	
 	msg_type = "0C" -- msg-type is 12 ( 0x0C)
 	hopcount = "02" -- Should be under user control too
@@ -337,14 +394,46 @@ local Spoof_Relay_Forwarder = function ( Source, SOLICIT , Subnets )
 	peerAdd  = Source
 	Options = Generar_Option_Relay( SOLICIT )
 	
-	print ("msg_type Message ( " .. #msg_type/2 .. " octetos): " .. msg_type )
-	print ("hopcount Message ( " .. #hopcount/2 .. " octetos): " .. hopcount )
-	print ("linkAdd Message ( " .. #linkAdd/2 .. " octetos): " .. linkAdd )
-	print ("peerAdd Message ( " .. #peerAdd/2 .. " octetos): " .. peerAdd )
-	print ("Options Message ( " .. #Options/2 .. " octetos): " .. Options )
+	if Subnet == nil then
+	  linkAdd = "20010db8c0ca00000000000000000001"
+	else 	--We assume is  IPv6 Address and we need to convert to Hexadecimal value
+	 
+	    Address, Prefix = itsismx.Extract_IPv6_Add_Prefix(Subnet)
+	    sUnicast, sError = ipOps.get_last_ip  (Address, Prefix) --We use the last IPv6 add because is alway valid
+	  
+	    if sUnicast == nil then
+		stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				  "\n\t Relay Forward: " .. " The subnet provided (" .. stdnse.string_or_blank(Subnet) ..
+				  ")  was bad formed and throw the next error: " ..  sError )
+		return "", sError
+	     else 
+		-- We need to remove ":" from the chain.
+		sUnicast = ipOps.expand_ip(sUnicast)
+		linkAdd = sUnicast:gsub(":" , "")
+		print ( "linkAdd (" .. #linkAdd .. "): " .. linkAdd  ) 
+	      
+	    end
+	    
+	    
+	   
+	end
 	
 	
-	return msg_type .. hopcount .. linkAdd ..  peerAdd .. Options
+	--print ("msg_type Message ( " .. #msg_type/2 .. " octetos): " .. msg_type )
+	--print ("hopcount Message ( " .. #hopcount/2 .. " octetos): " .. hopcount )
+	--print ("linkAdd Message ( " .. #linkAdd/2 .. " octetos): " .. linkAdd )
+	--print ("peerAdd Message ( " .. #peerAdd/2 .. " octetos): " .. peerAdd )
+	--print ("Options Message ( " .. #Options/2 .. " octetos): " .. Options )
+	
+	stdnse.print_debug(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				"\n\t Relay Forward: " .. " msg_type: " ..   msg_type .. 
+				"\n\t hopcount: " .. msg_type  .. 
+				"\n\t linkAdd: " .. linkAdd  .. 
+				"\n\t peerAdd: " .. peerAdd  .. 
+				"\n\t Options: " ..  Options   )
+	
+	Relay = msg_type .. hopcount .. linkAdd ..  peerAdd .. Options
+	return Relay, nil
 end
 ---
 -- The script need to be working with IPv6 
@@ -449,6 +538,82 @@ local Transmision_Recepcion = function (  IPv6src, IPv6dst , Prtsrc, Prtdst , Me
 	
 end
 
+--- 
+-- There are two way the user provided subnets:
+-- 1) X:X:X:X::/YY 2) {X:X:X:X::/YY, B, T} 
+-- The first is very simple, the user already made all the work. 
+-- The second however we need to sub-netting (YY+B) and calculate
+-- the first T subnets from the new prefix.
+local Extaer_Subredes = function(Subnet) 
+
+  local Auxiliar = {}
+  local  Contador, Valor
+  local Net, Bits, Total, Dirre, Prefijo, NewPrefix, Binario, NewNet
+  if type(Subredes) ==  "table" then -- This is the funny part!
+       Net, Bits, Total = Subredes[1] , Subredes[2], Subredes[3]
+      Dirre, Prefijo = itsismx.Extract_IPv6_Add_Prefix(Net) 
+      NewPrefix = Prefijo + Bits
+      
+      -- This is the funny part... we need to work bits... increase bits and then 
+      -- work more... BUT aren-t the host bit but the network one.. We need the special function from
+      -- de la libreria itsismx, sumaremos por ejemplo  2001:db8:c0ca:0000:: + 0:0:0:0:AB:: 
+      -- para obtener 2001:db8:c0ca:AB:: (o convertir todo a binario, e ir incrementando la cuenta)
+      Binario = ipOps.ip_to_bin((Dirre)
+      if (Binario ~= nil) then
+      
+      
+	for Contador = 1, Total do 
+	  Valor = nmap.tobin(Contador)
+	  while #Valor < Bits do Valor = "0" .. Valor end
+	  NewNet = Binario:sub[1,Prefijo] .. Valor .. Binario[NewPrefix+1 , 128]
+	  NewNet = ipOps.bin_to_ip(NewNet)
+	  table.insert(Auxiliar, NewNet .. "/" .. NewPrefix)
+	end 
+     else
+	
+     end
+    
+  else 				 
+    table.insert(Auxiliar, Subnet )
+  end
+  
+  return Auxiliar
+end
+---
+-- Will retrieve two posible lists and return on single table.
+local Listado_Subredes = function ()
+    local TotalNets, Aux = {} , {}
+    local Subredes = stdnse.get_script_args( "itsismx-dhcpv6.subnets" )
+    --local NetworkRanges =  stdnse.get_script_args( "itsismx-dhcpv6.NetRange" )
+    local index, campo 
+    
+    if Subredes ~= nil then
+	if type(Subredes) ==  "table" then
+	  for index, campo in ipairs(Subredes) do 
+	    --TotalNets{#TotalNets+1} = campo
+	  end
+	else
+	 -- TotalNets{#TotalNets+1} = Subredes
+	end
+      
+    end
+    
+--     if NetworkRanges ~- nil then
+--     
+--       if type(Subredes) ==  "table" then
+-- 	  for index, campo in ipairs(Subredes) do 
+-- 	    TotalNets{#TotalNets+1} = campo
+-- 	  end
+-- 	else
+-- 	  TotalNets{#TotalNets+1} = Subredes
+-- 	end
+--     
+--     end
+  
+
+end
+
+
 ---
 -- This run only as pre-scanning phase.
 action = function()
@@ -465,6 +630,11 @@ action = function()
 	itsismx.Registro_Global_Inicializar("dhcpv6") -- We prepare our work!
 	
 	local Mensaje, Host, Error, Relay
+	
+	--The mechanism is very simple, we retrieve the list provided by the user
+	--then begin to generate the messages for each one of those.
+	
+	
 	
 	Mensaje, Host, Error	= Spoof_Host_Solicit()
 	
