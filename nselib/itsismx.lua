@@ -500,7 +500,7 @@ end
 --- 
 -- This function will initialize the global registry nmap.registry.itsismx
 -- As this is global will check if was already called by one previous script 
--- if not, will create it. In both cases  a sub entry
+-- if not, will create it. In both cases  a sub entry will be generated too.
   Registro_Global_Inicializar =  function ( Registro )
 
 	local Global = nmap.registry.itsismx
@@ -590,6 +590,19 @@ Is_Binary = function ( Bits )
 	 end
 	
 	return true
+end
+
+
+--- 
+-- This function will do NOTHING but kill time. LUA do not provide something 
+-- similar.  This only is useful IF WE NEED TO WAIT or KILL TIME for avoid 
+-- detections and only if we are on pre-scanning or post-scannig due nmap  
+-- provide more powerfuls tools for the other two phases
+waitUtime = function ( micrseconds ) 
+  
+  local start = stdnse.clock_us ()
+  repeat until stdnse.clock_us () > start + micrseconds
+  
 end
 
 ---
