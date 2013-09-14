@@ -84,7 +84,9 @@ Generar_DUID = function ( )
 	-- By default will be "Ethernet" (0x0001)
 	local Hardware = "0001"
 	local stime = nmap.clock()
-	local LinkAdd, nRand
+	local LinkAdd, nRand, Mac
+	-- Note: LinkAdd will generate a IPv6 Address and Mac will generate a MAC address
+	--       both will be from the same source (EUI-64)
 	
 	-- We work first the time Variable. We need to pass to a valid represented in seconds since 
 	-- midnight (UTC) January 1, 2000  modulo 2^32
@@ -106,14 +108,18 @@ Generar_DUID = function ( )
       	if Ghost ~= nil then
 	   -- We need to be sure the OUI be a valid 
 	   if itsismx.Is_Valid_OUI(Ghost) then
-	      LinkAdd = "FE80000000000000" .. Ghost  .. "FFFE"
+	     LinkAdd = "FE80000000000000" .. Ghost  .. "FFFE"
+	     Mac = Ghost
 	   else
 	      LinkAdd = "FE80000000000000" .. "24B6FD"  .. "FFFE" 
+	      Mac = "24B6FD"
 	      stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 				"DUID-LLT ERROR  " .. " was provided a INVALID OUI value and was ignored. " )
 	   end
 	else 
-	  LinkAdd = "FE80000000000000" .. "24B6FD"  .. "FFFE" 
+	  Mac = "24B6FD"
+	  --LinkAdd = "FE80000000000000" .. "24B6FD"  .. "FFFE" 
+	  LinkAdd = "FE80000000000000" .. "26B6FD"  .. "FFFE"
 	end
 	
 	-- The last 24 bits will be random (just avoid be so hussy)
@@ -121,10 +127,14 @@ Generar_DUID = function ( )
 	nRand = itsismx.DecToHex( math.random( 16777216 ) )-- 2^24
 	while  #nRand < 6 do  nRand = "0" .. nRand end
 	
+	 
 	LinkAdd = LinkAdd .. nRand
+	Mac = Mac .. nRand
+	print("\t Link-Layer: " .. LinkAdd )
+	print("\t MAC       : " .. Mac  )
 	
 	-- Finally we put everythign togheter LinkAdd
-	DUID = DUID .. Hardware .. stime .. LinkAdd
+	DUID = DUID .. Hardware .. stime .. Mac
 	--print(" DUID (" .. #DUID / 2 .. " octetos) :" ..   DUID)
 	--print("\t Constat 1:  2"  )
 	--print("\t Hardware: " .. #Hardware/2)
@@ -162,7 +172,7 @@ local Generar_Option_Relay = function ( Mensaje)
 end
 
 ---
--- Will generate a  IA_TA Option 
+-- Will generate a  Client Identifier Option  
 -- RFC 3315 22.2. Client Identifier Option p. 70
 -- @return  String 	Hexadecimal bytes representing this DHCP option.
 -- @return	String	Hexadecimal bytes representing the DUID.
@@ -228,11 +238,12 @@ local Generar_IA_Option = function()
   -- preference for the preferred and valid lifetimes.
   preferred, valid = "00000000", "00000000" 
  
-  -- For now... static but should be static... if is not static we risk 
+  -- For now... static but should  be dynamic... if is not static  
   -- we risk to been spoted easy (Two interfaces can have same link/address
   -- as long they are on different subnets)
-  Ipv6Add = "FE8000000000000062eb69fffeaf2b83" 
- 
+  --Ipv6Add = "FE8000000000000062eb69fffeaf2b83" 
+  Ipv6Add =   "20010db8c0ca000000000000c0a8010b"
+
  --An IA Address option may appear only in an IA_NA option or an IA_TA
  -- option. For our project mean: NO OPTIONS.
   options = ""
@@ -243,7 +254,7 @@ local Generar_IA_Option = function()
 end
 
 ---
--- Will generate a  Client Identifier Option 
+-- Will generate a  IA_TA Option
 -- RFC 3315 22.5. Client Identifier Option p. 74
 -- @return  String 	Hexadecimal bytes representing this DHCP option.
 -- @return	String	Hexadecimal bytes representing the IAID.
@@ -265,11 +276,15 @@ local Generar_Option_IA_TA = function()
 	
 	-- The IA_TA Options... is variable lenght and the RFC is not clear 
 	-- As we are trying to be a "first time node connecting to the network" 
-	-- Im assume we ned the Satus Code NoBinding ( 0x02 ) 
+	-- Im assume we need the Satus Code NoBinding ( 0x02 ) 
 	-- or maybe none ?
 	-- OK... Seem we need IA Option field which is inside of IA_TA or IA_NA
 	-- P. 76 RFC 3314 22.6
+	-- Sep13: After seeing the work of current implemented servers  seem it's better
+	-- left it on blank.
 	Options = Generar_IA_Option()
+	--Options = ""
+	
 	Option_Len = itsismx.DecToHex (4 + #Options/2)
 	while #Option_Len < 4 do Option_Len = "0" .. Option_Len  end
 	IA_TA = Option_Code .. Option_Len .. IAID .. Options
@@ -289,6 +304,56 @@ local Generar_Option_IA_TA = function()
 	return IA_TA , IAID
 end
 
+---
+-- Will generate a  IA_NA Option
+-- RFC 3315 22.3. Client Identifier Option p. 74
+-- @return  String 	Hexadecimal bytes representing this DHCP option.
+-- @return	String	Hexadecimal bytes representing the IAID.
+local Generar_Option_IA_NA = function()
+    local IA_NA, Option_Code , Option_Len, IAID, T1, T2
+    local IA_NA_Options
+
+--	The format of the IA_NA option is:
+--       0                   1                   2                   3
+--       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+--      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+--      |          OPTION_IA_NA         |          option-len           |
+--      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+--      |                        IAID (4 octets)                        |
+--      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+--      |                              T1                               |
+--     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+--      |                              T2                               |
+--      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+--      |                                                               |
+--      .                         IA_NA-options                         .
+--      .                                                               .
+--      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+      
+	  -- Read the Generar_Option_IA_TA comments
+	  -- RFC 3315 p. 74:
+	  -- In a message sent by a client to a server, values in the T1 and T2
+	  ---fields indicate the client's preference for those parameters.  The
+	  --client sets T1 and T2 to 0 if it has no preference for those values.
+
+	Option_Code,T1, T2 = "0003", "00000000", "00000000" 
+	
+	-- The RFC say "Client generate IAID" and the IAID is 4 octets...
+	--IAID = itsismx.DecToHex( math.random( 4294967296 ) ) -- 2^32
+	IAID="f" --Seem wide-dhcpv6-server need this field to be F
+	while #IAID < 8 do IAID = "0" .. IAID  end
+
+	 -- Though those are dynamic seem to be totally optionals.
+	IA_NA_Options = ""
+	
+	Option_Len = itsismx.DecToHex (12 + #IA_NA_Options/2)
+	while #Option_Len < 4 do Option_Len = "0" .. Option_Len  end
+	 print( "IANA Lenght: " .. 12 + #IA_NA_Options/2 .. " YA en hex:" .. Option_Len ) 
+	
+	IA_NA = Option_Code .. Option_Len ..  IAID ..  T1 ..  T2  .. IA_NA_Options
+	return IA_NA , IAID
+end
 ---
 -- Will generate a  Elapsed Time Option 
 -- RFC 3315 22.9. Elapsed Time Option  p. 78
@@ -316,6 +381,36 @@ local Generar_Option_Elapsed_Time = function()
 				" \n\t Time elapsed: " ..   elapsed  )
 	
 	return option_code .. option_len .. elapsed
+end
+
+
+
+-- Will generate a Option Request Option 
+-- RFC 3315 22.7. Elapsed Time Option  p. 78
+-- @return  String 	Hexadecimal bytes representing this DHCP option.
+local Generar_Option_Request = function()
+
+--      0                   1                   2                   3
+--       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+--      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+--      |           OPTION_ORO          |           option-len          |
+--      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+--      |    requested-option-code-1    |    requested-option-code-2    |
+--      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+--      |                              ...                              |
+--      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ 
+  -- This message is generated due  seem to be neccesary
+  local Option_Oro, Option_Len, req_option_code1 = "0006", "0002"
+  
+  --option-len    2 * number of requested options.
+  
+  -- The RFC is not clear which are our option however, there is a known one 
+  -- for ask the  domain name which is 24 (0x0018) 
+  req_option_code1 = "0018"
+  
+  return Option_Oro .. Option_Len .. req_option_code1
+
 end
 ---
 -- Will retrun a  RANDOM host Solicit Message based on chapter 17.1.1 Creation of 
@@ -352,7 +447,8 @@ local Spoof_Host_Solicit = function ()
 
 	local Solicit, Error = "01", nil
 	local TransactionID, DUID, IAID, LinkAdd = 0
-	local ClientID, IA_TA, Time
+	local ClientID, IA_TA, Time, Option_Request
+	local IA_NA
 	local Host = { "DUID", "Type", "IAID", "LinkAdd"}
 
 -- RFC 3315, 15.1 P. 27
@@ -370,21 +466,32 @@ local Spoof_Host_Solicit = function ()
 	while #TransactionID < 6 do TransactionID = "0" .. TransactionID  end 
 				
 	ClientID, DUID, LinkAdd = Generar_Option_ClientID()
-	IA_TA, IAID = Generar_Option_IA_TA ()
+	
+	-- IA-TA & IA-NA are our option ,however seem not all the dhcpv6 servers work well with both
+	-- by example, wide-dhcpv6-server only accept IA-NA
+	-- IA_TA, IAID = Generar_Option_IA_TA ()
+	IA_NA, IAID = Generar_Option_IA_NA ()
+	
+	print(" El problema: " .. IA_NA .. " ( " .. #IA_NA .. ")" )
+	
 	Time = Generar_Option_Elapsed_Time()
 	
 	--TIP: The client SHOULD include an Option Request option 
 	-- AKA: IGNORE IT!!!
+	-- Sep: Bad idea?
+	Option_Request = Generar_Option_Request()
 
 	stdnse.print_debug(3, SCRIPT_NAME ..  
 				".Solicit: " .. " New SOLICIT Message. ID: " ..   TransactionID  )
 	stdnse.print_debug(3, SCRIPT_NAME .. 
 				".Solicit: " .. " Client ID: " ..   ClientID  )
 				
-	stdnse.print_debug(3, SCRIPT_NAME .. 
-				".Solicit: " .. " IA-TA : " ..   IA_TA  )
+	--stdnse.print_debug(3, SCRIPT_NAME .. 
+	--			".Solicit: " .. " IA-TA : " ..   IA_TA  )
 	stdnse.print_debug(3, SCRIPT_NAME ..  
 				".Solicit: " .. " Time: " ..   Time  )
+	stdnse.print_debug(3, SCRIPT_NAME ..  
+				".Solicit: " .. " Option Request: " ..   Option_Request  )
 	
 	--print("TransactionID: " .. TransactionID ) 
 	--print("ClientID: " .. ClientID ) 
@@ -402,10 +509,11 @@ local Spoof_Host_Solicit = function ()
 				" type of request: " .. Host.Type  .. 
 				"\n DUID: " ..  Host.DUID .. "\n IAID: "  .. Host.IAID )
 	
+	
 	-- A this point we should have a valid SOLICIT Message... for this "alpha" verison 
 	-- we are  going to have blind faith
-	Solicit =  Solicit .. TransactionID ..  ClientID  .. IA_TA ..   Time
-	-- There is something wrong with IA_TA but Can-t find the problem...
+	--Solicit =  Solicit .. TransactionID ..  ClientID  .. IA_TA ..   Time .. Option_Request
+	Solicit =  Solicit .. TransactionID ..  ClientID  .. IA_NA ..   Time .. Option_Request
 	return Solicit, Host,  Error
 end
 
@@ -546,6 +654,8 @@ prerule = function()
 		stdnse.print_verbose("%s Need to be executed for IPv6.", SCRIPT_NAME)
 		return false
 	end
+
+	  -- Need to  have access to a ethernet port at least.
 	
   return true
 end
@@ -567,9 +677,10 @@ local Transmision_Recepcion = function (  IPv6src, IPv6dst , Prtsrc, Prtdst , Me
 	
 	-- local condvar = nmap.condvar(results) -- This is for multithreadign.. (not implemented yet)
 	
-	local src_mac = packet.mactobin("00:D0:BB:00:00:01") -- (Spoofed) Cisco device!
-	local dst_mac = packet.mactobin("33:33:00:00:00:01")
-	
+	local src_mac = packet.mactobin("00:D0:BB:00:7d:01") -- (Spoofed) Cisco device!
+	--local src_mac = packet.mactobin("00:21:70:1c:9b:79")
+	-- local dst_mac = packet.mactobin("33:33:00:00:00:01")  -- Seem to be wrong this Multicast
+	  local dst_mac = packet.mactobin("33:33:00:01:00:02")
 	--local src_ip6 = packet.ip6tobin(IPv6src)
 	--local src_ip6 = packet.ip6tobin("fe80::62eb:69ff:feaf:2b83")
 	local src_ip6 = bin.pack("H", IPv6src) --We already have it on "bytes"
@@ -598,6 +709,7 @@ local Transmision_Recepcion = function (  IPv6src, IPv6dst , Prtsrc, Prtdst , Me
 	-- The Easy solution: Add 4 bytes more to our data.
       
 	Spoofed:build_ipv6_packet(src_ip6,dst_ip6,17, Bytes ,3,0,0)
+	
 	Bool = Spoofed:ip6_parse(false)
 	--print("Parse IPv6: " .. tostring(Bool))
 	
@@ -765,13 +877,14 @@ action = function()
 	for Index, Subnet in ipairs(UserSubnets) do 
 	    math.randomseed ( nmap.clock_ms() )
 	    Mensaje, Host, Error	= Spoof_Host_Solicit() -- Each subnet a different host
-	    
+	    Transmision_Recepcion( Host.LinkAdd, "FF02::1:2",  546,547, Mensaje )
 	    --print ("SOCICIT Message ( " .. #Mensaje/2 .. " octetos): " .. Mensaje )
-	    Relay = Spoof_Relay_Forwarder ( Host["LinkAdd"] , Mensaje , Subnet )
+	    
+	    --Relay = Spoof_Relay_Forwarder ( Host["LinkAdd"] , Mensaje , Subnet )
 	    --print ("Relay Message ( " .. #Relay/2 .. " octetos): " .. Relay )
 	    
 	    -- This one will receive all the confirmed elements
-	   tSalida = Transmision_Recepcion( Host.LinkAdd, "FF02::1:2",  546,547, Relay )
+	   --tSalida = Transmision_Recepcion( Host.LinkAdd, "FF02::1:2",  546,547, Relay )
 	   
 	   --Before we pass to the next sub/net candidate we must wait a little time
 	   -- Normally Nmap will love to create multithreadings, however WE MUST 
