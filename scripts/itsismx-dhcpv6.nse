@@ -51,7 +51,7 @@ description = [[
 --					another time. (Minimun 1 
 -- Version 0.5
 --	Update 04/06/2013	- V0.5 Produce the messages to spoof.
--- 	Created 27/05/2013	- v0.1 - created by Ing. Raul Fuentes <ra.fuentess.sam@gmail.com>
+-- 	Created 27/05/2013	- v0.1 - created by Ing. Raul Fuentes <ra.fuentess.sam+nmap@gmail.com>
 --
 
 author = "Raul Armando Fuentes Samaniego"
@@ -130,8 +130,8 @@ Generar_DUID = function ( )
 	 
 	LinkAdd = LinkAdd .. nRand
 	Mac = Mac .. nRand
-	print("\t Link-Layer: " .. LinkAdd )
-	print("\t MAC       : " .. Mac  )
+	--print("\t Link-Layer: " .. LinkAdd )
+	--print("\t MAC       : " .. Mac  )
 	
 	-- Finally we put everythign togheter LinkAdd
 	DUID = DUID .. Hardware .. stime .. Mac
@@ -181,6 +181,9 @@ local Generar_Option_ClientID =  function ()
 	-- Option-Len is the DUID lenght in octets. Our DUID have 24 bits
 	-- which are 6 hexdecimal and those are 3 octets.
 	local Option_Code , Option_Len, DUID, LinkAdd = "0001","0000", Generar_DUID()
+	
+	-- We need to generate 
+	
 	
 	-- For now, with this info we simply return it (with the DUID)
 	-- (In future we can make a more complex system trying to imitate 
@@ -472,7 +475,7 @@ local Spoof_Host_Solicit = function ()
 	-- IA_TA, IAID = Generar_Option_IA_TA ()
 	IA_NA, IAID = Generar_Option_IA_NA ()
 	
-	print(" El problema: " .. IA_NA .. " ( " .. #IA_NA .. ")" )
+	--print(" El problema: " .. IA_NA .. " ( " .. #IA_NA .. ")" )
 	
 	Time = Generar_Option_Elapsed_Time()
 	
@@ -655,7 +658,7 @@ prerule = function()
 		return false
 	end
 
-	  -- Need to  have access to a ethernet port at least.
+	  -- Need to  have access to one ethernet port at least.
 	
   return true
 end
@@ -877,6 +880,16 @@ action = function()
 	for Index, Subnet in ipairs(UserSubnets) do 
 	    math.randomseed ( nmap.clock_ms() )
 	    Mensaje, Host, Error	= Spoof_Host_Solicit() -- Each subnet a different host
+	    
+	    -- NOTE:  We can spoof the message, however, the source need to exist before hand or we are going to
+	    -- have problems due Neighbor Discover Protocol.
+	    
+	    local iface, err = nmap.get_interface_info("wlan0")
+	    -- local ifacekey, ifacedata
+	    -- for ifacekey, ifacedata in pairs(iface) do print(ifacekey, ifacedata) end 
+	    print(iface.address)
+
+	    
 	    Transmision_Recepcion( Host.LinkAdd, "FF02::1:2",  546,547, Mensaje )
 	    --print ("SOCICIT Message ( " .. #Mensaje/2 .. " octetos): " .. Mensaje )
 	    
