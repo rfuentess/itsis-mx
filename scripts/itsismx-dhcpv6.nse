@@ -28,28 +28,33 @@ description = [[
 -- @output
 
 
--- @args itsismx-dhcpv6.subnet 	It's table/single  IPv6 subnetworks to test if exist .
---	   We can have two types of entries: Single subnet ( X:X:X:X::/YY ), or 
---          range of subnets to calculate (X:X:X:X::/YY , Bits, Total ) where  
---	    B are the bits used for subnetting and Total amount of subnets to search.
---	    Please, be sure of the next:  2^Bits >= Total
---	   (Ex. 2001:db8:c0ca::/48 or { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 } or 
---          { {2001:db8:c0ca::/48, 16, 23} , 2001:db8:c0ca::/48} )
---		NOTE: If one or more are discovered as valid sub-network will be added to a special
---		registry for all the other scripts (words, slaac, map4to6, mac-prefixes) to be used.
-
+-- @args itsismx-dhcpv6.subnet 		It's table/single  IPv6 subnetworks to test if exist .
+--	   				We can have two types of entries: Single subnet ( X:X:X:X::/YY ), or 
+--          				range of subnets to calculate (X:X:X:X::/YY , Bits, Total ) where  
+--	   				 B are the bits used for subnetting and Total amount of subnets to search.
+--	    				Please, be sure of the next:  2^Bits >= Total
+--	   				(Ex. 2001:db8:c0ca::/48 or { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 } or 
+--          				{ {2001:db8:c0ca::/48, 16, 23} , 2001:db8:c0ca::/48} )
+--					NOTE: 	If one or more are discovered as valid sub-network will be added to a special
+--					  	registry for all the other scripts (words, slaac, map4to6, mac-prefixes) to be used.
+--
 -- @args itsismx-dhcpv6.TimeToBeg	It-s a number. 16 bits expressed in hundreths of a second.
---		When we are sending solicits, the clients indicate  ow much time had spent
---		trying to get a Address, this make some server and relay agents give ive preference
---		 to solicits with higher Time
+--					When we are sending solicits, the clients indicate  ow much time had spent
+--					trying to get a Address, this make some server and relay agents give ive preference
+--		 			to solicits with higher Time
+--
 --@args	itsismx-dhcpv6.Company		String 6 hexadecimal.  By defualt the script will generate
---		random hosts from a DELL OUI (24B6FD). With this argument the user can provided 
---		a specific OUI. However, the last 24 bits will still be generate randomly.
+--					random hosts from a DELL OUI (24B6FD). With this argument the user can provided 
+--					a specific OUI. However, the last 24 bits will still be generate randomly.
+--
 --@args itsismx-dhcpv6.utime		Number. Between each try to get a subnet we wait random time
 --					measure on microseconds. By default we wait no more than 
 --					200 microseconds. With this argument the user can provided a 
 --					another time. (Minimun 1 
--- Version 0.5
+
+
+-- Version 0.7
+--	Update 19/09/2013	- V0.7 Finished tranmsision
 --	Update 04/06/2013	- V0.5 Produce the messages to spoof.
 -- 	Created 27/05/2013	- v0.1 - created by Ing. Raul Fuentes <ra.fuentess.sam+nmap@gmail.com>
 --
@@ -133,6 +138,12 @@ Generar_DUID = function ( )
 	--print("\t Link-Layer: " .. LinkAdd )
 	--print("\t MAC       : " .. Mac  )
 	
+	--local iface, err = nmap.get_interface_info("wlan0")
+	--LinkAdd=iface.address
+	--LinkAdd="fe80000000000000062eb069ff0feaf2b83"
+	--print ( "RAYOS: " .. LinkAdd )
+	--Mac="60eb69af2b83" 
+	
 	-- Finally we put everythign togheter LinkAdd
 	DUID = DUID .. Hardware .. stime .. Mac
 	--print(" DUID (" .. #DUID / 2 .. " octetos) :" ..   DUID)
@@ -174,6 +185,7 @@ end
 ---
 -- Will generate a  Client Identifier Option  
 -- RFC 3315 22.2. Client Identifier Option p. 70
+-- NOTE: The Client-ID lenght need to be fixed for Verify_Relay_Reply() to work OK
 -- @return  String 	Hexadecimal bytes representing this DHCP option.
 -- @return	String	Hexadecimal bytes representing the DUID.
 local Generar_Option_ClientID =  function () 
@@ -412,6 +424,9 @@ local Generar_Option_Request = function()
   -- for ask the  domain name which is 24 (0x0018) 
   req_option_code1 = "0018"
   
+  -- Future work will give the options to add more things (Maybe from a Byte 
+  -- Flag)
+  
   return Option_Oro .. Option_Len .. req_option_code1
 
 end
@@ -464,42 +479,54 @@ local Spoof_Host_Solicit = function ()
 -- Tip: The transaction-ID SHOULD be a strong random, however this is a spoofing
 -- we are going to be very simple (but random for help us with multiple subnets. )
 
+	local Na_or_Ta = stdnse.get_script_args( "itsismx-dhcpv6.IA_NA" )
+	local Bool_Option_Req = stdnse.get_script_args( "itsismx-dhcpv6.Option_Request" )
+
 	-- Counter or Random ? That is the question...
 	TransactionID = itsismx.DecToHex( math.random( 16777216 ) ) -- 2^24
 	while #TransactionID < 6 do TransactionID = "0" .. TransactionID  end 
 				
 	ClientID, DUID, LinkAdd = Generar_Option_ClientID()
 	
-	-- IA-TA & IA-NA are our option ,however seem not all the dhcpv6 servers work well with both
-	-- by example, wide-dhcpv6-server only accept IA-NA
-	-- IA_TA, IAID = Generar_Option_IA_TA ()
-	IA_NA, IAID = Generar_Option_IA_NA ()
-	
-	--print(" El problema: " .. IA_NA .. " ( " .. #IA_NA .. ")" )
-	
+	-- IA-TA & IA-NA are our option
+	-- We can send a IA-NA (Non-temporary Address) or IA-TA (Temporary Address) 
+	-- by default will be IA-TA
+	if Na_or_Ta  == nil then
+	    IA_TA, IAID = Generar_Option_IA_TA ()
+	else 
+	    IA_NA, IAID = Generar_Option_IA_NA ()
+	end
+	 
 	Time = Generar_Option_Elapsed_Time()
 	
-	--TIP: The client SHOULD include an Option Request option 
-	-- AKA: IGNORE IT!!!
-	-- Sep: Bad idea?
-	Option_Request = Generar_Option_Request()
-
+	
+	-- The Option Request field it-s optional, however seem to be all the clients  use it. 
+	-- However some servers (Wide-Server, Windows Server 2008/2012 server) Don't need it.
+	if Bool_Option_Req ~= nil then 
+	    Option_Request = Generar_Option_Request()
+	end
+	
 	stdnse.print_debug(3, SCRIPT_NAME ..  
 				".Solicit: " .. " New SOLICIT Message. ID: " ..   TransactionID  )
 	stdnse.print_debug(3, SCRIPT_NAME .. 
 				".Solicit: " .. " Client ID: " ..   ClientID  )
-				
-	--stdnse.print_debug(3, SCRIPT_NAME .. 
-	--			".Solicit: " .. " IA-TA : " ..   IA_TA  )
+			
+	if Na_or_Ta == nil then
+	    stdnse.print_debug(3, SCRIPT_NAME .. 
+				".Solicit: " .. " IA-TA : " ..   IA_TA  )
+	
+	else 
+	    stdnse.print_debug(3, SCRIPT_NAME .. 
+				".Solicit: " .. " IA-NA : " ..   IA_NA  )
+	end		
+			
 	stdnse.print_debug(3, SCRIPT_NAME ..  
 				".Solicit: " .. " Time: " ..   Time  )
-	stdnse.print_debug(3, SCRIPT_NAME ..  
-				".Solicit: " .. " Option Request: " ..   Option_Request  )
 	
-	--print("TransactionID: " .. TransactionID ) 
-	--print("ClientID: " .. ClientID ) 
-	--print("IA_TA: " .. IA_TA ) 
-	--print("Time: " .. Time ) 
+	if Bool_Option_Req ~= nil then
+	    stdnse.print_debug(3, SCRIPT_NAME ..  
+				".Solicit: " .. " Option Request: " ..   Option_Request  )
+	end
 	
 	-- Now we update the Tuple for this host
 	Host.DUID = DUID
@@ -515,8 +542,16 @@ local Spoof_Host_Solicit = function ()
 	
 	-- A this point we should have a valid SOLICIT Message... for this "alpha" verison 
 	-- we are  going to have blind faith
-	--Solicit =  Solicit .. TransactionID ..  ClientID  .. IA_TA ..   Time .. Option_Request
-	Solicit =  Solicit .. TransactionID ..  ClientID  .. IA_NA ..   Time .. Option_Request
+	if Na_or_Ta == nil then
+	    Solicit =  Solicit .. TransactionID ..  ClientID  .. IA_TA ..   Time  
+	else 
+	    Solicit =  Solicit .. TransactionID ..  ClientID  .. IA_NA ..   Time 
+	end		
+	
+	if Bool_Option_Req ~= nil then 
+	    Solicit = Solicit .. Option_Request
+	end
+	
 	return Solicit, Host,  Error
 end
 
@@ -563,7 +598,7 @@ local Spoof_Relay_Forwarder = function ( Source, SOLICIT , Subnet )
 	local Relay, sError, sUnicast, Address, Prefix
 	
 	msg_type = "0C" -- msg-type is 12 ( 0x0C)
-	hopcount = "02" -- Should be under user control too
+	hopcount = "00" -- Though this option could be other values some server don-t accept a fake number
 	linkAdd = "20010db8c0ca00000000000000000001" -- THIS IS WHAT WE WANT !!!!
 	peerAdd  = Source
 	Options = Generar_Option_Relay( SOLICIT )
@@ -583,44 +618,12 @@ local Spoof_Relay_Forwarder = function ( Source, SOLICIT , Subnet )
 				  ")  was bad formed and throw the next error: " ..  sError )
 		return "", sError
 	     else 
+	     
+	     
 		-- WE need to expand the IPv6 address to use all the hexadecimals
 		--print ( "linkAdd (" .. #sUnicast .. "): " .. sUnicast  ) 
-		-- We need to remove ":" from the chain.
+		linkAdd = itsismx.Expand_Bytes_IPv6_Address(sUnicast)
 		
-		local Segmentos, HexSeg = {}
-		local S1, S2, S3, S4, S5, S6, S7, S8
-		Segmentos = ipOps.get_parts_as_number(sUnicast)
-		S1, S2, S3, S4, S5, S6, S7, S8 = table.unpack( Segmentos )
-		linkAdd = ""
-		--print(S1 .. S2 .. S3 .. S4 .. S5 .. S6 .. S7 .. S8 )
-		
-		HexSeg = itsismx.DecToHex(S1)
-		while #HexSeg < 4 do HexSeg = "0" .. HexSeg end
-		linkAdd = linkAdd .. HexSeg
-		HexSeg = itsismx.DecToHex(S2)
-		while #HexSeg < 4 do HexSeg = "0" .. HexSeg end
-		linkAdd = linkAdd .. HexSeg
-		HexSeg = itsismx.DecToHex(S3)
-		while #HexSeg < 4 do HexSeg = "0" .. HexSeg end
-		linkAdd = linkAdd .. HexSeg
-		HexSeg = itsismx.DecToHex(S4)
-		while #HexSeg < 4 do HexSeg = "0" .. HexSeg end
-		linkAdd = linkAdd .. HexSeg
-		HexSeg = itsismx.DecToHex(S5)
-		while #HexSeg < 4 do HexSeg = "0" .. HexSeg end
-		linkAdd = linkAdd .. HexSeg
-		HexSeg = itsismx.DecToHex(S6)
-		while #HexSeg < 4 do HexSeg = "0" .. HexSeg end
-		linkAdd = linkAdd .. HexSeg
-		HexSeg = itsismx.DecToHex(S7)
-		while #HexSeg < 4 do HexSeg = "0" .. HexSeg end
-		linkAdd = linkAdd .. HexSeg
-		HexSeg = itsismx.DecToHex(S8)
-		while #HexSeg < 4 do HexSeg = "0" .. HexSeg end
-		linkAdd = linkAdd .. HexSeg
-		--linkAdd = S1 .. S2 .. S3 .. S4 .. S5 .. S6 .. S7 .. S8
-		
-		--print ( "linkAdd (" .. #linkAdd .. "): " .. linkAdd  ) 
 	      
 	    end
 	    
@@ -631,7 +634,7 @@ local Spoof_Relay_Forwarder = function ( Source, SOLICIT , Subnet )
 	
 	--print ("msg_type Message ( " .. #msg_type/2 .. " octetos): " .. msg_type )
 	--print ("hopcount Message ( " .. #hopcount/2 .. " octetos): " .. hopcount )
-	--print ("linkAdd Message ( " .. #linkAdd/2 .. " octetos): " .. linkAdd )
+	print ("linkAdd Message ( " .. #linkAdd/2 .. " octetos): " .. linkAdd )
 	--print ("peerAdd Message ( " .. #peerAdd/2 .. " octetos): " .. peerAdd )
 	--print ("Options Message ( " .. #Options/2 .. " octetos): " .. Options )
 	
@@ -644,6 +647,123 @@ local Spoof_Relay_Forwarder = function ( Source, SOLICIT , Subnet )
 	
 	Relay = msg_type .. hopcount .. linkAdd ..  peerAdd .. Options
 	return Relay, nil
+end
+
+
+---
+-- We are going to verify our answer from the server 
+local Verify_Relay_Reply = function ( PeerAddress,  RELAY , Subnet )
+
+   --The message we got have the next  structure:
+--	msg-type:       RELAY-REPLY (0x0d)
+--	hop-count:      0x00  
+--	link-address:   0 ( 128 bits)
+--	peer-address:   A (128 bits)
+--	Relay Message
+--		Option-Code 	(0x0009)
+--		Option-Lenght	(16 bits)
+--		Relay-Message	(Variable... but should be Adverstiment Message)
+
+-- Our TCPdump filter   has all the thing is important to us and as we are at the end of the chain
+-- our Relay-message  has only one Message otpion left so the first extension is know to us.
+-- 8+8+128+128+16+16=304/8
+-- So, we begin at line 305 and we are going to have this message:
+
+--      0                   1                   2                   3
+--       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+--      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+--      |    msg-type   |               transaction-id                  |
+--      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+--      |                                                               |
+--      .                            options                            .
+--      .                           (variable)                          .
+--      |                                                               |
+--      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+--	msg-type: 0x02 
+--	transaction-id:  (16 bits)
+--	Options... CaN BE VARIABLE 
+
+      local Longitud, Adv_Msg = #RELAY-(49+38)+1 , ""
+      local hex_pos, hex_dhcp_data, Campos
+      
+      
+      hex_pos , hex_dhcp_data = bin.unpack("H".. tostring(Longitud), RELAY ,49+38 )
+
+      --print(" Adverstiment Message:  Pos: " .. hex_pos .. " \n\t" ..  hex_dhcp_data) 
+      
+      -- Should be a valid one but we are going to be sure. 
+      if ( hex_dhcp_data:sub(1,2) ~= "02") then
+	return false, "It's not a Solicit message"
+      end
+      -- Now we have two possible scenarios: 
+      -- IA-TA with the next structure:
+      --	Client ID Option  (Our target is here) 
+      --	Server ID Option
+      --	Plus any other options (WE don't care)
+      -- IA-NA with the next structure
+      --	Client ID Option
+      --	Server ID Option
+      --	Identity Association for Non-temporary Address (Our target is here)
+      --	Plus any other options (WE don't care)
+      
+      -- The Client ID OPtion is variable...
+      
+      local Na_or_Ta = stdnse.get_script_args( "itsismx-dhcpv6.IA_NA" )
+      local offset=0
+      
+      if (Na_or_Ta ) then  -- IA-NA
+      
+	     print("IA-NA") 
+      
+	    offset= 7+2+4
+	    Campos = hex_dhcp_data:sub(offset) -- We extract until "Option-len"
+	    
+	    Longitud = Campos:sub(1,4)
+	    
+	    print("Client ID Option length: " .. tonumber(Longitud,16) .. " bytes") 
+	    
+	    -- Now the Server ID Option
+	    offset= 7+2+4+4+ tonumber(Longitud,16)*2 + 4
+	    Campos = hex_dhcp_data:sub(offset) -- We extract until "Option-len"
+	    Longitud = Campos:sub(1,4)
+	     
+	      print("Server ID Option length: " .. tonumber(Longitud,16) .. " bytes") 
+	     
+	     -- Identity Association for Non-temporary Address
+	     offset = offset + tonumber(Longitud,16)*2 + 4
+	     Campos = hex_dhcp_data:sub(offset)
+	     
+	     -- This option have the follow parts:
+	     --Option (0x0003)
+	     --Lenght (16 bits )
+	     --IAID (16 bits)
+	     --T1 (32 bits)
+	     --T2 (32 bits)
+	     -- IP address 
+	     --		Option ( 0x0005 )
+	     --		Lenght ( 16 bits ) PERO tiene que ser 24
+	     --		Address (128 bits) OUR TARGET!!
+	     --		pREFERERD TIME (32 bits)
+	     --		vALID Time (32 bits) 
+	    offset = offset + 4 + 4 + 4 + 8 + 8 +4 
+	    Campos = hex_dhcp_data:sub(offset)
+	    
+	    if ( Campos:sub(1,4) ~= "0005") then
+		return false, "We are waiting for a IA-NA but got another type of answer: " .. Campos:sub(1,4)
+	    end
+	    
+	    offset = offset + 4 + 4
+	    Campos = hex_dhcp_data:sub(offset)
+	     print("campos: " .. Campos:sub(1,32) )
+	    return true, Campos:sub(1,32)
+	   
+      else
+	     print("IA-TA") 
+      
+      end
+      
+
 end
 ---
 -- The script need to be working with IPv6 
@@ -658,20 +778,48 @@ prerule = function()
 		return false
 	end
 
-	  -- Need to  have access to one ethernet port at least.
-	
+ -- Need to  have access to one ethernet port at least.
+   --local iface, err = nmap.get_interface_info("eth0")
+   if ( nmap.get_interface () == nil ) then 
+      stdnse.print_verbose(" The NSE Script need to work with a Ethernet Interface, Please use the argument -e <Interface>. " )
+      stdnse.print_debug  (" The NSE Script need to work with a Ethernet Interface, Please use the argument -e <Interface>. " )
+      return false 
+   end
+   
+   local iface, err = nmap.get_interface_info( nmap.get_interface () )
+   --local ifacekey, ifacedata
+   --for ifacekey, ifacedata in pairs(iface) do print(ifacekey, ifacedata) end 
+ 
+    if ( err ~=nil) then
+	stdnse.print_verbose( "dhcv6 can't be initialized due the next ERROR: " ..  err )
+	stdnse.print_debug  ( "dhcv6 can't be initialized due the next ERROR: " ..  err )
+	return false;
+    elseif iface.link ~= "ethernet"  then
+	stdnse.print_verbose(" The NSE Script need to work with a Ethernet Interface, Please use the argument -e <Interface> to select it. " )
+	stdnse.print_debug  (" The NSE Script need to work with a Ethernet Interface, Please use the argument -e <Interface> to select it. " )
+	return false
+    end
+ 
   return true
 end
 
 --- 
 -- Will create a spoofed message for transmit (any message)  and inmediatly 
 -- will hear for a answer (to be selected by a filter) and will return it.
-local Transmision_Recepcion = function (  IPv6src, IPv6dst , Prtsrc, Prtdst , Mensaje, Tcpdumb_Filter)
+-- @param 	String	Source IPv6 Address  
+-- @param 	String	Destiny IPv6 Address
+-- @param 	String	Source Port Address  
+-- @param 	String	Destiny Port Address
+-- @param	String	String representing bytes (The message to send) 
+-- @param	String	String representing the Interface Name 
+-- @return 		
+local Transmision_Recepcion = function (  IPv6src, IPv6dst , Prtsrc, Prtdst , Mensaje, Interface)
+	
 	local Bytes --, ToTransmit
 	Bytes = bin.pack("H" , "0000000000000000" .. Mensaje ) -- those extra bits are for being overwritten
 
-	local Interfaz = nmap.get_interface()
-	local Bool
+	local Interfaz, err = nmap.get_interface_info( Interface )
+	local Bool, Tcpdumpfilter
 	
 	local dnet = nmap.new_dnet()
 	local pcap = nmap.new_socket()
@@ -681,26 +829,35 @@ local Transmision_Recepcion = function (  IPv6src, IPv6dst , Prtsrc, Prtdst , Me
 	-- local condvar = nmap.condvar(results) -- This is for multithreadign.. (not implemented yet)
 	
 	local src_mac = packet.mactobin("00:D0:BB:00:7d:01") -- (Spoofed) Cisco device!
-	--local src_mac = packet.mactobin("00:21:70:1c:9b:79")
 	-- local dst_mac = packet.mactobin("33:33:00:00:00:01")  -- Seem to be wrong this Multicast
-	  local dst_mac = packet.mactobin("33:33:00:01:00:02")
-	--local src_ip6 = packet.ip6tobin(IPv6src)
-	--local src_ip6 = packet.ip6tobin("fe80::62eb:69ff:feaf:2b83")
-	local src_ip6 = bin.pack("H", IPv6src) --We already have it on "bytes"
+	local dst_mac = packet.mactobin("33:33:00:01:00:02")
+
+	local src_ip6 = bin.pack("H",  itsismx.Expand_Bytes_IPv6_Address(  IPv6src ) ) --We already have it on "bytes"
 	local dst_ip6 = packet.ip6tobin(IPv6dst)
 
 	-- We open all the elements we are going to need
 	
 	-- dnet:ip_open()
-	dnet:ethernet_open("eth0")
+	dnet:ethernet_open( Interfaz.device)
 	
 	-- Before we begin to send packets is a good idea turn on the Pcap 
-	-- for retrieve our own packets (That is don't lost our message because we turn on too late).
-	--pcap:pcap_open(if_nfo.device, 1500, false, "ip6[40:1] == 58") -- this is for AFTER sending the packet
+	-- for retrieve our own packets (or risk to lost our message because we turn on too late).
+	
+	--    device: The dnet-style interface name of the device you want to capture from.
+	--    snaplen: The length of each packet you want to capture (similar to the -s option to tcpdump)
+	--    promisc: Boolean value for whether the interface should activate promiscuous mode.
+	--    bpf: A string describing a Berkeley Packet Filter expression (like those provided to tcpdump).
+
+	-- At spanish WE WANT  ONLY ONE Type of answer
+	Tcpdumpfilter = "ip6 dst  " .. IPv6src  .. " and udp src port 547 and udp dst port 547" 
+	--Tcpdumpfilter = "ip6 src  " .. IPv6src 
+
+	print("\t The DCPdump filter:  \t" ..   Tcpdumpfilter )
+	pcap:pcap_open(Interfaz.device, 1500, true, Tcpdumpfilter) 
+	
 	
 	-- From zero... We need a UDP datagram, then a IP packet  and finally a Ethernet Frame... 
 	-- UDP and IP are declared inside of the "Packet class" on packet.lua
-	
 	local Spoofed = packet.Packet:new()
 	
 	-- Ejem src, dst, nx_hdr, payload, h_limit, t_class, f_label	
@@ -710,15 +867,14 @@ local Transmision_Recepcion = function (  IPv6src, IPv6dst , Prtsrc, Prtdst , Me
 	-- Howeve,r this data NEED TO HAVE FIRST THE UDP otherwise
 	-- the UDP part will overwritten it... 
 	-- The Easy solution: Add 4 bytes more to our data.
-      
+	 
 	Spoofed:build_ipv6_packet(src_ip6,dst_ip6,17, Bytes ,3,0,0)
-	
 	Bool = Spoofed:ip6_parse(false)
-	--print("Parse IPv6: " .. tostring(Bool))
+	
 	
 	--We work the UDP...
 	Spoofed:udp_parse(false) --Now the UDP ...
-	--print("Parse UDP: " .. tostring(Bool))
+	
 	Spoofed:udp_set_sport(Prtsrc) 
 	Spoofed:udp_set_dport(Prtdst)
 	Spoofed:udp_set_length(#Bytes) 
@@ -731,7 +887,7 @@ local Transmision_Recepcion = function (  IPv6src, IPv6dst , Prtsrc, Prtdst , Me
 	Spoofed:count_ipv6_pseudoheader_cksum()
 	
 	-- We already have everything, however, we can spoof  the MAC address
-	-- This part of packet.lua is... CRAP we ignore the "class"
+	-- This part of packet.lua is CRAP we ignore the "class"
 	-- and write the info directly to our Frame to send.
 	local probe = packet.Frame:new()
 	probe.mac_dst = dst_mac
@@ -755,7 +911,38 @@ local Transmision_Recepcion = function (  IPv6src, IPv6dst , Prtsrc, Prtdst , Me
 	-- Y CERRAR pcap. (No olvidar si encontramos esto, agregamos ipv6src a la tabla tSalidas
 	--  con su prefijo )no olvidar que esta tecnica no es exacta con esto(.
 	
+	-- HERE IS THE SECOND PART OF FUTURE WORK
+	-- If we are trying to spoof nodes, we need to listen NDP Neighbor Solicitation for our spoofed node 
+	-- and then answer it with the correct  NDP Neighbor Adverstiment (Or just send the second?). 
+	
+	-- More info: http://nmap.org/nsedoc/lib/nmap.html#pcap_receive
+	local status, plen, l2_data, l3_data, time , hex_pos , hex_l3_data
+	 status, plen, l2_data, l3_data, time = pcap:pcap_receive()
+	
+	
+	if (status==nil) then -- No packet captured (Timeout)
+	      print("NO PCAP!!!")
+	elseif status==true then  -- We got a packet ... time to work with it
+	 
+	 -- en teoria en este punto tengo un paquete de longitud cercana a 100-110 bytes
+	 -- Es decir 100 a 110 caracteres hexadecimales bigend
+	 
+	 --IPv6  Header It's from 0-40
+	 --UDP Header is from 41 - 48
+	 -- Relay Reply header: 49 - (49+32)
+	--hex_pos , hex_l3_data = bin.unpack("H32", l3_data ,49+38 ) -- We retrieve the DHCPv6 Message   
+	--print( "( "..  #l3_data .. " ) " .."hex_pos: " .. hex_pos .. "\n Data: " .. hex_l3_data)
+	
+	Verify_Relay_Reply(src_ip6, l3_data,  nil ) 
+	    --  print("Status: " .. tostring(status) .. "\n " .. plen ..  "\n L3: " .. l3_data .. "\n " ..  time)
+	    
+	    --A this 
+	    
+	    
+	end
+	
 	-- Finally we close everything we already openeed
+	pcap:pcap_close()
 	dnet:ip_close()
 	dnet:ethernet_close()
 	
@@ -798,7 +985,7 @@ local Extaer_Subredes = function(Subnet)
 		end 
 	    
 	    else	   -- Error, so we escape this entry 
-		  tdnse.print_debug(3, SCRIPT_NAME  .. "\t\t The next provided subnet has wrong syntax: "  .. 
+		  stdnse.print_debug(3, SCRIPT_NAME  .. "\t\t The next provided subnet has wrong syntax: "  .. 
 			Subnet ..   mensaje)  
 	    end
 	  
@@ -859,6 +1046,8 @@ action = function()
 	local bExito = false
 	local tSalida =  { Subnets={}, Error=""}
 	local microseconds = stdnse.get_script_args( "itsismx-dhcpv6.utime" )
+	local Boolean_IPv6Address = stdnse.get_script_args( "itsismx-dhcpv6.Spoofed_IPv6Address" )
+	local Spoofed_IPv6Address
 	
 	if microseconds == nil then
 	    microseconds = 200
@@ -880,24 +1069,32 @@ action = function()
 	for Index, Subnet in ipairs(UserSubnets) do 
 	    math.randomseed ( nmap.clock_ms() )
 	    Mensaje, Host, Error	= Spoof_Host_Solicit() -- Each subnet a different host
+	    Relay = Spoof_Relay_Forwarder ( Host["LinkAdd"] , Mensaje , Subnet )
 	    
 	    -- NOTE:  We can spoof the message, however, the source need to exist before hand or we are going to
-	    -- have problems due Neighbor Discover Protocol.
-	    
-	    local iface, err = nmap.get_interface_info("wlan0")
-	    -- local ifacekey, ifacedata
-	    -- for ifacekey, ifacedata in pairs(iface) do print(ifacekey, ifacedata) end 
-	    print(iface.address)
-
-	    
-	    Transmision_Recepcion( Host.LinkAdd, "FF02::1:2",  546,547, Mensaje )
-	    --print ("SOCICIT Message ( " .. #Mensaje/2 .. " octetos): " .. Mensaje )
-	    
-	    --Relay = Spoof_Relay_Forwarder ( Host["LinkAdd"] , Mensaje , Subnet )
-	    --print ("Relay Message ( " .. #Relay/2 .. " octetos): " .. Relay )
+	    -- have problems due Neighbor Discover Protocol. This mean, at least there is preventive work for spoofing 
+	    -- (Which will be left for future work we need to use a REAL IPv6 source address). 
+	    if  Boolean_IPv6Address == nil  then
+		local iface, err = nmap.get_interface_info(nmap.get_interface ())
+		
+		-- local ifacekey, ifacedata
+		-- for ifacekey, ifacedata in pairs(iface) do print(ifacekey, ifacedata) end 
+	
+		-- This should be redudant due we already did this on the Pre-Rule
+		if ( err ~=nil  ) then 
+		    tSalida.Error = err
+--		    return stdnse.format_output(bExito, tOutput);	
+		else 
+		    Spoofed_IPv6Address = iface.address
+		end
+		
+	    else 
+		-- Future work if we want to spoof a fake node.
+		 Spoofed_IPv6Address = Host.LinkAdd
+	    end
 	    
 	    -- This one will receive all the confirmed elements
-	   --tSalida = Transmision_Recepcion( Host.LinkAdd, "FF02::1:2",  546,547, Relay )
+	   tSalida = Transmision_Recepcion(  Spoofed_IPv6Address , "FF02::1:2",  546,547, Relay, nmap.get_interface () )
 	   
 	   --Before we pass to the next sub/net candidate we must wait a little time
 	   -- Normally Nmap will love to create multithreadings, however WE MUST 
@@ -911,7 +1108,7 @@ action = function()
 	
 
 	
-	
+	bExito = true
 	return stdnse.format_output(bExito, tOutput);	
 	--return  tOutput
 	

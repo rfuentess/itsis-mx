@@ -663,4 +663,54 @@ HextToBin = function( Number )
 	return Bits
 end
 
+
+---
+-- This will get any valid IPv6 address and will expand it WITH all the bytes  
+-- returning a string of bytes
+-- @args 	IPv6_Address	String  representing IPv6 Address
+-- @return 	String		String representy the 16 bytes of the IPv6 Address
+Expand_Bytes_IPv6_Address = function ( IPv6_Address )
+	
+	local Segmentos, HexSeg, linkAdd = {}
+	local S1, S2, S3, S4, S5, S6, S7, S8
+	Segmentos = ipOps.get_parts_as_number(IPv6_Address)
+	S1, S2, S3, S4, S5, S6, S7, S8 = table.unpack( Segmentos )
+	linkAdd = ""
+	
+	HexSeg = DecToHex(S1)
+	while #HexSeg < 4 do HexSeg = "0" .. HexSeg end
+	linkAdd = linkAdd .. HexSeg
+	
+	HexSeg = DecToHex(S2)
+	while #HexSeg < 4 do HexSeg = "0" .. HexSeg end
+	linkAdd = linkAdd .. HexSeg
+	
+	HexSeg = DecToHex(S3)
+	while #HexSeg < 4 do HexSeg = "0" .. HexSeg end
+	linkAdd = linkAdd .. HexSeg
+	
+	HexSeg = DecToHex(S4)
+	while #HexSeg < 4 do HexSeg = "0" .. HexSeg end
+	linkAdd = linkAdd .. HexSeg
+	
+	HexSeg = DecToHex(S5)
+	while #HexSeg < 4 do HexSeg = "0" .. HexSeg end
+	linkAdd = linkAdd .. HexSeg
+	
+	HexSeg = DecToHex(S6)
+	while #HexSeg < 4 do HexSeg = "0" .. HexSeg end
+	linkAdd = linkAdd .. HexSeg
+	
+	HexSeg = DecToHex(S7)
+	while #HexSeg < 4 do HexSeg = "0" .. HexSeg end
+	linkAdd = linkAdd .. HexSeg
+	
+	HexSeg = DecToHex(S8)
+	while #HexSeg < 4 do HexSeg = "0" .. HexSeg end
+	linkAdd = linkAdd .. HexSeg
+
+	return linkAdd
+end
+
+
 return _ENV;
