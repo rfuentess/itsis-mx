@@ -13,7 +13,7 @@ description = [[
   The objective is not a DoS against the server neither retrive host info but simply confirm if a subset of 
   sub-networks exist at all. Will generate one single relay-forwarder message (RFC 3315 20.1.2 p. 59)
   with a good HOP_COUNT_LIMIT (Spoofed) and a host request-message (Spoofed with random DUID) and we are going 
-  to wait for a Relay-reply message (20.3 p. 60) if we got answer, (optional) we send another relay-forwarder 
+  to wait for a Relay-reply message (20.3 p. 60) if we got answer, (ToDo) we send another relay-forwarder 
   message with a host declined-message for don't be evil with the server. 
   
   ACL on the server, ACL on the router,  IPsec between relays agent and server  can kill this technique.
@@ -53,7 +53,8 @@ description = [[
 --					another time. (Minimun 1 
 
 
--- Version 0.7
+-- Version 1.0
+--  Update 28/09/2013	- V1.0 First functional IA-NA mechanish finished.
 --	Update 19/09/2013	- V0.7 Finished tranmsision
 --	Update 04/06/2013	- V0.5 Produce the messages to spoof.
 -- 	Created 27/05/2013	- v0.1 - created by Ing. Raul Fuentes <ra.fuentess.sam+nmap@gmail.com>
@@ -286,7 +287,8 @@ local Generar_Option_IA_TA = function()
 --	chosen to be unique among all IAIDs for IAs belonging to that client.
 		
 	-- The RFC say "Client generate IAID" and the IAID is 4 octets...
-	IAID = itsismx.DecToHex( math.random( 4294967296 ) ) -- 2^32
+	--IAID = itsismx.DecToHex( math.random( 4294967296 ) ) -- 2^32
+	IAID = "f"
 	while #IAID < 8 do IAID = "0" .. IAID  end
 	
 	-- The IA_TA Options... is variable lenght and the RFC is not clear 
@@ -480,6 +482,8 @@ local Spoof_Host_Solicit = function ()
 -- we are going to be very simple (but random for help us with multiple subnets. )
 
 	local Na_or_Ta = stdnse.get_script_args( "itsismx-dhcpv6.IA_NA" )
+	Na_or_Ta = true 
+	
 	local Bool_Option_Req = stdnse.get_script_args( "itsismx-dhcpv6.Option_Request" )
 
 	-- Counter or Random ? That is the question...
@@ -651,8 +655,15 @@ end
 
 
 ---
--- We are going to verify our answer from the server 
-local Verify_Relay_Reply = function ( PeerAddress,  RELAY , Subnet )
+-- We are going to verify our answer from the server. 
+-- Not all the answer mean we got a true positive answer so, we need to retrieve
+-- the IA-NA or IA-TA  IPv6 address suggested by the server.
+-- @param 		String		The Peer Address or better say OUR fake Relay Agent address
+-- @param		Bytes		The full Relay-Reply message from our server. 
+-- @param		String		X:X:X:X::/YY  subnet we want to confirm.
+-- @return		Boolean		The subnet and the answer match (TRUE), otherwise False
+-- @return		String		Nil if the boolean is true, otherwise give hints of the error.		
+local Verify_Relay_Reply = function ( PeerAddress,  Relay_Reply , Subnet )
 
    --The message we got have the next  structure:
 --	msg-type:       RELAY-REPLY (0x0d)
@@ -684,9 +695,9 @@ local Verify_Relay_Reply = function ( PeerAddress,  RELAY , Subnet )
 --	transaction-id:  (16 bits)
 --	Options... CaN BE VARIABLE 
 
-      local Longitud, Adv_Msg = #RELAY-(49+38)+1 , ""
+      local Longitud, Adv_Msg = #Relay_Reply-(49+38)+1 , ""
       local hex_pos, hex_dhcp_data, Campos
-      
+      local Candidata, bBool, sBool
       
       hex_pos , hex_dhcp_data = bin.unpack("H".. tostring(Longitud), RELAY ,49+38 )
 
@@ -710,6 +721,8 @@ local Verify_Relay_Reply = function ( PeerAddress,  RELAY , Subnet )
       -- The Client ID OPtion is variable...
       
       local Na_or_Ta = stdnse.get_script_args( "itsismx-dhcpv6.IA_NA" )
+	  Na_or_Ta = true
+	  
       local offset=0
       
       if (Na_or_Ta ) then  -- IA-NA
@@ -721,14 +734,14 @@ local Verify_Relay_Reply = function ( PeerAddress,  RELAY , Subnet )
 	    
 	    Longitud = Campos:sub(1,4)
 	    
-	    print("Client ID Option length: " .. tonumber(Longitud,16) .. " bytes") 
+	    stdnse.print_debug(3, "Client ID Option length: " .. tonumber(Longitud,16) .. " bytes") 
 	    
 	    -- Now the Server ID Option
 	    offset= 7+2+4+4+ tonumber(Longitud,16)*2 + 4
 	    Campos = hex_dhcp_data:sub(offset) -- We extract until "Option-len"
 	    Longitud = Campos:sub(1,4)
 	     
-	      print("Server ID Option length: " .. tonumber(Longitud,16) .. " bytes") 
+	      stdnse.print_debug(3, "Server ID Option length: " .. tonumber(Longitud,16) .. " bytes") 
 	     
 	     -- Identity Association for Non-temporary Address
 	     offset = offset + tonumber(Longitud,16)*2 + 4
@@ -755,14 +768,27 @@ local Verify_Relay_Reply = function ( PeerAddress,  RELAY , Subnet )
 	    
 	    offset = offset + 4 + 4
 	    Campos = hex_dhcp_data:sub(offset)
-	     print("campos: " .. Campos:sub(1,32) )
-	    return true, Campos:sub(1,32)
+	    Candidata = Campos:sub(1,32) 
+	    
+		 
+		
+		return true, Campos:sub(1,32)
 	   
       else
 	     print("IA-TA") 
+		 
+		 -- TODO: Need to add those lines when Find a good document talking about the format
+		 -- The RFC is unclear how to address it.
       
       end
       
+	  
+	  bBool, sBool = ipOps.ip_in_range(Candidata, Subnet )
+	  if bBool then 
+			return bBool, nil
+	  else 
+			return bBool, sBool
+	  end 
 
 end
 ---
@@ -791,12 +817,12 @@ prerule = function()
    --for ifacekey, ifacedata in pairs(iface) do print(ifacekey, ifacedata) end 
  
     if ( err ~=nil) then
-	stdnse.print_verbose( "dhcv6 can't be initialized due the next ERROR: " ..  err )
-	stdnse.print_debug  ( "dhcv6 can't be initialized due the next ERROR: " ..  err )
+	--stdnse.print_verbose( "dhcv6 can't be initialized due the next ERROR: " ..  err )
+	stdnse.print_debug  (1, "dhcv6 can't be initialized due the next ERROR: " ..  err )
 	return false;
     elseif iface.link ~= "ethernet"  then
-	stdnse.print_verbose(" The NSE Script need to work with a Ethernet Interface, Please use the argument -e <Interface> to select it. " )
-	stdnse.print_debug  (" The NSE Script need to work with a Ethernet Interface, Please use the argument -e <Interface> to select it. " )
+	--stdnse.print_verbose(" The NSE Script need to work with a Ethernet Interface, Please use the argument -e <Interface> to select it. " )
+	stdnse.print_debug  (1, " The NSE Script need to work with a Ethernet Interface, Please use the argument -e <Interface> to select it. " )
 	return false
     end
  
@@ -806,14 +832,16 @@ end
 --- 
 -- Will create a spoofed message for transmit (any message)  and inmediatly 
 -- will hear for a answer (to be selected by a filter) and will return it.
+-- You may want to use -d1 to catch any error
 -- @param 	String	Source IPv6 Address  
 -- @param 	String	Destiny IPv6 Address
 -- @param 	String	Source Port Address  
 -- @param 	String	Destiny Port Address
 -- @param	String	String representing bytes (The message to send) 
 -- @param	String	String representing the Interface Name 
--- @return 		
-local Transmision_Recepcion = function (  IPv6src, IPv6dst , Prtsrc, Prtdst , Mensaje, Interface)
+-- @param	String	X:X:X:X::/YY Subnet (String format)
+-- @return 	Boolean True if we got a positive answer, false otherwise	
+local Transmision_Recepcion = function (  IPv6src, IPv6dst , Prtsrc, Prtdst , Mensaje, Interface , Subnet)
 	
 	local Bytes --, ToTransmit
 	Bytes = bin.pack("H" , "0000000000000000" .. Mensaje ) -- those extra bits are for being overwritten
@@ -823,9 +851,7 @@ local Transmision_Recepcion = function (  IPv6src, IPv6dst , Prtsrc, Prtdst , Me
 	
 	local dnet = nmap.new_dnet()
 	local pcap = nmap.new_socket()
-	
-	local tSalida =  { Subnets={}, Error=""}
-	
+
 	-- local condvar = nmap.condvar(results) -- This is for multithreadign.. (not implemented yet)
 	
 	local src_mac = packet.mactobin("00:D0:BB:00:7d:01") -- (Spoofed) Cisco device!
@@ -852,7 +878,7 @@ local Transmision_Recepcion = function (  IPv6src, IPv6dst , Prtsrc, Prtdst , Me
 	Tcpdumpfilter = "ip6 dst  " .. IPv6src  .. " and udp src port 547 and udp dst port 547" 
 	--Tcpdumpfilter = "ip6 src  " .. IPv6src 
 
-	print("\t The DCPdump filter:  \t" ..   Tcpdumpfilter )
+	stdnse.print_debug(5, "\t The DCPdump filter:  \t" ..   Tcpdumpfilter )
 	pcap:pcap_open(Interfaz.device, 1500, true, Tcpdumpfilter) 
 	
 	
@@ -921,23 +947,19 @@ local Transmision_Recepcion = function (  IPv6src, IPv6dst , Prtsrc, Prtdst , Me
 	
 	
 	if (status==nil) then -- No packet captured (Timeout)
-	      print("NO PCAP!!!")
-	elseif status==true then  -- We got a packet ... time to work with it
+	     -- print("NO PCAP!!!")
+		 stdnse.print_debug(3, " The subnet "  .. Subnet .. " seem not be avaliable" ) 
+		 Bool = false
+	elseif status==true then  -- We got a packet ... time to work with it	 
+		 -- en teoria en este punto tengo un paquete de longitud cercana a 100-110 bytes
+		 -- Es decir 100 a 110 caracteres hexadecimales bigend
+		Bool , err = Verify_Relay_Reply(src_ip6, l3_data,  Subnet ) 
 	 
-	 -- en teoria en este punto tengo un paquete de longitud cercana a 100-110 bytes
-	 -- Es decir 100 a 110 caracteres hexadecimales bigend
-	 
-	 --IPv6  Header It's from 0-40
-	 --UDP Header is from 41 - 48
-	 -- Relay Reply header: 49 - (49+32)
-	--hex_pos , hex_l3_data = bin.unpack("H32", l3_data ,49+38 ) -- We retrieve the DHCPv6 Message   
-	--print( "( "..  #l3_data .. " ) " .."hex_pos: " .. hex_pos .. "\n Data: " .. hex_l3_data)
-	
-	Verify_Relay_Reply(src_ip6, l3_data,  nil ) 
-	    --  print("Status: " .. tostring(status) .. "\n " .. plen ..  "\n L3: " .. l3_data .. "\n " ..  time)
-	    
-	    --A this 
-	    
+		if Bool == false then 
+			stdnse.print_debug(1, " The subnet "  .. Subnet .. " got this error: "  ..  err)
+		else
+			stdnse.print_debug(3, " The subnet "  .. Subnet .. " is Online")
+		end
 	    
 	end
 	
@@ -946,7 +968,8 @@ local Transmision_Recepcion = function (  IPv6src, IPv6dst , Prtsrc, Prtdst , Me
 	dnet:ip_close()
 	dnet:ethernet_close()
 	
-	return tSalida
+	return Bool
+	
 end
 
 
@@ -1043,7 +1066,7 @@ action = function()
 	--Vars for created the final report
 	
 	local tOutput = stdnse.output_table()
-	local bExito = false
+	local bExito , bRecorrido = false, false 
 	local tSalida =  { Subnets={}, Error=""}
 	local microseconds = stdnse.get_script_args( "itsismx-dhcpv6.utime" )
 	local Boolean_IPv6Address = stdnse.get_script_args( "itsismx-dhcpv6.Spoofed_IPv6Address" )
@@ -1054,6 +1077,8 @@ action = function()
 	else 
 	    microseconds = tonumber( microseconds ) 
 	end  
+	
+	
 	
 	tOutput.Subnets = {}  
 	--print("HEY!")
@@ -1075,26 +1100,32 @@ action = function()
 	    -- have problems due Neighbor Discover Protocol. This mean, at least there is preventive work for spoofing 
 	    -- (Which will be left for future work we need to use a REAL IPv6 source address). 
 	    if  Boolean_IPv6Address == nil  then
-		local iface, err = nmap.get_interface_info(nmap.get_interface ())
+			local iface, err = nmap.get_interface_info(nmap.get_interface ())
+			
+			-- local ifacekey, ifacedata
+			-- for ifacekey, ifacedata in pairs(iface) do print(ifacekey, ifacedata) end 
 		
-		-- local ifacekey, ifacedata
-		-- for ifacekey, ifacedata in pairs(iface) do print(ifacekey, ifacedata) end 
-	
-		-- This should be redudant due we already did this on the Pre-Rule
-		if ( err ~=nil  ) then 
-		    tSalida.Error = err
---		    return stdnse.format_output(bExito, tOutput);	
-		else 
-		    Spoofed_IPv6Address = iface.address
-		end
+			-- This should be redudant due we already did this on the Pre-Rule
+			if ( err ~=nil  ) then 
+				tSalida.Error = err
+	--		    return stdnse.format_output(bExito, tOutput);	
+			else 
+				Spoofed_IPv6Address = iface.address
+			end
 		
 	    else 
-		-- Future work if we want to spoof a fake node.
-		 Spoofed_IPv6Address = Host.LinkAdd
+			-- Future work if we want to spoof a fake node.
+			 Spoofed_IPv6Address = Host.LinkAdd
 	    end
 	    
 	    -- This one will receive all the confirmed elements
-	   tSalida = Transmision_Recepcion(  Spoofed_IPv6Address , "FF02::1:2",  546,547, Relay, nmap.get_interface () )
+	   bRecorrido = Transmision_Recepcion(  Spoofed_IPv6Address , "FF02::1:2",  546,547, Relay, nmap.get_interface () , Subnet )
+	   
+	   bExito = bExito or bRecorrido
+	   if bRecorrido then
+			table.insert(tSalida.Nodos,Subnet)
+	   end
+	   
 	   
 	   --Before we pass to the next sub/net candidate we must wait a little time
 	   -- Normally Nmap will love to create multithreadings, however WE MUST 
@@ -1106,9 +1137,18 @@ action = function()
 	
 
 	
-
+	-- There is at least one node on the list ?
+	if (bExito) then 
+		nmap.registry.itsismx.PrefixesKnown = tSalida.Nodos
+		stdnse.print_debug(1, SCRIPT_NAME  .. " Were added  " .. #tSalida.Nodos  ..  
+							" subnets to scan!"   )
+	else
+		itsismx.Registro_Global_Inicializar("PrefixesKnown") -- We prepare our work!
+		nmap.registry.itsismx.PrefixesKnown = tSalida.Nodos
+		stdnse.print_debug(1, SCRIPT_NAME  .. " Not sub-net were added to the scan list!"   )
+	end
 	
-	bExito = true
+
 	return stdnse.format_output(bExito, tOutput);	
 	--return  tOutput
 	

@@ -47,6 +47,10 @@ description=[[
 -- 	Created 29/04/2013	- v0.1 - created by Ing. Raul Fuentes <ra.fuentess.sam@gmail.com>
 --
 
+author = "Raul Fuentes"
+license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+categories = {"broadcast", "safe"}
+
 --- 
 -- Get a Prefix and for that one will add all the valids  words  we known.
 -- However two arguments from the user can affect how calculated the hosts.

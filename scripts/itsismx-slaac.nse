@@ -80,6 +80,10 @@ description=[[
 -- 	Created 10/04/2013	- v0.1 - created by Ing. Raul Fuentes <ra.fuentess.sam@gmail.com>
 --
 
+author = "Raul Fuentes"
+license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+categories = {"broadcast", "safe"}
+
 ---
 -- This function get the first 88 bits of a SLAAC IPv6 address and will calculate the  
 -- last 24 bits using brute force (A Sweep of address).   This is the one to use when we 
