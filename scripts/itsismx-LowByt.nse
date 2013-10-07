@@ -144,7 +144,7 @@ local IPv6_GetLowBytesHost = function( IPv6PRefix , NBits)
 			
 			TablaHost = IPv6_Create_HostsRange(SubRed,Prefijo)
 			
-			stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. " Subnet/Prefix: " ..
+			stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. " Subnet/Prefix: " ..
 					IPv6PRefix .. "\t Total low-bytes nodes (Using the last " .. 128 - Prefijo ..
 					" bits ) found: " .. #TablaHost )
 			
@@ -167,7 +167,7 @@ local IPv6_GetLowBytesHost = function( IPv6PRefix , NBits)
 				  " ) it-s too big for use the Bytes provided ( " ..  NBits .. " )"
 				  -- WE can/t stop there but we skip this Prefix 
 				  TodoOk = false
-				  stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. "\t Subnet/Prefix: " ..
+				  stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. "\t Subnet/Prefix: " ..
 					IPv6Subnet_Prefix .. " had a wrong total prefix: " .. Prefijo + NBits  )
 				  
 			else
@@ -184,7 +184,7 @@ local IPv6_GetLowBytesHost = function( IPv6PRefix , NBits)
 				
 				Hosts_Subred = IPv6_Create_HostsRange(SubRed,Prefijo)
 
-				stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. "\t Subnet/Prefix: " ..
+				stdnse.print_verbose(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. "\t Subnet/Prefix: " ..
 					IPv6Subnet_Prefix .. " Total low-bytes nodes (Prefix" .. Prefijo ..
 					" ) found: " .. #Hosts_Subred )				
 				
@@ -196,7 +196,7 @@ local IPv6_GetLowBytesHost = function( IPv6PRefix , NBits)
 			
 		end
 	
-		stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+		stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 							"\t Total low-bytes nodes found: " .. #TablaHost )	
 		
 		bExito = TodoOk
@@ -224,7 +224,7 @@ local PreScanning = function()
 	local Usuarios, Universales = {},{}
 	local bUniv, sUniv, bUser, sUser = true, "", true, ""
 	
-	stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+	stdnse.print_verbose(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 			": Begining the Pre-scanning work... "    )
 	
 	-- Existen 2 fuentes de Prefijos previos (No excluyentes):
@@ -258,13 +258,13 @@ local PreScanning = function()
 		tSalida.Error = "Was add a very high value to nbits. Was fixed to 16"
 	end
 	
-	stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+	stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 			": Numbers of bits we took as \"Low-bytes\": " ..  NumBits   )
 	
 	-- Damos preferencia a los universales y luego a los proveidos por el usuario.
 	-- for _,Ruta in ipairs(PrefijosUniversales) do 
 	if #PrefijosUniversales > 0 then 
-		stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+		stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 			": Number of Prefixes Known from other sources: " ..  #PrefijosUniversales   )
 		bUniv, Universales, sUniv = IPv6_GetLowBytesHost(PrefijosUniversales, NumBits)
 		for _,v in ipairs(Universales) do  table.insert(tSalida.Nodos,v) end 
@@ -272,14 +272,14 @@ local PreScanning = function()
 	-- end 
 	--We have two options with  PrefijosUsuario String (ONE) or Table (One or more) 
 	if   type(PrefijosUsuario) ==  "string"  and   #PrefijosUsuario > 0  then
-		stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..  
+		stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..  
 							" Number of Prefixes provided by  the user: 1"  )
 				
 		bUser, Usuarios, sUser = IPv6_GetLowBytesHost(PrefijosUsuario, NumBits)
 		for _,v in ipairs(Usuarios) do  table.insert(tSalida.Nodos,v) end
 		
 	elseif (#PrefijosUsuario > 0) then
-		stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..  
+		stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..  
 							" Number of Prefixes provided by  the user: " .. #PrefijosUsuario )
 		bUser, Usuarios, sUser = IPv6_GetLowBytesHost(PrefijosUsuario, NumBits)
 		for _,v in ipairs(Usuarios) do  table.insert(tSalida.Nodos,v) end
@@ -305,7 +305,7 @@ local HostScanning = function( host)
 	local aux
 	
 	--Each host is too much!
-	stdnse.print_debug(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+	stdnse.print_verbose(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 			": Begining the Host-scanning results... "    )
 
 	-- We are going to be sure don't do stupid thing on wrong register (Because we don't have
@@ -332,37 +332,26 @@ end
 
 ---
 -- The script need to be working with IPv6
-prerule = function() return ( nmap.address_family() == "inet6") end
+prerule = function() 
+	  if ( not(nmap.address_family() == "inet6") ) then
+		stdnse.print_verbose("%s Need to be executed for IPv6.", SCRIPT_NAME)
+		return false
+	end
+	return true end
 ---
 -- This rule actually can do almost everything we need. "host" will be each host that is up
 -- so we only need to confirm that host is one of the previous pre-scanning phase nodesand return 
 -- true.
 hostrule = function(host) 
 	
-	--Debug
-	 -- local key, elemento 
-	  -- for key, elemento in pairs(nmap.registry.args) do
-		  -- print(key, elemento)
-	 -- end
-
-	
 	local  Totales, Objetivo, bMatch, sMatch  = nmap.registry.LowByt_PreHost	
-	
-	
-	-- print(Totales)
 	if Totales == nil  then return false end
-	--print("Totales:" .. #Totales)
-	
-	-- for key, elemento in pairs(Totales) do
-		 -- print(key, elemento)
-	 -- end
-	
+
 	for _, Objetivo in pairs( Totales ) do
 		
 		bMatch, sMatch = ipOps.compare_ip(host.ip, "eq", Objetivo)
 		if bMatch == nil then
-			--print (sMatch)
-			stdnse.print_debug(1, "\t hostrule  had a error with " ..   
+			stdnse.print_verbose(1, "\t hostrule  had a error with " ..   
 								host.ip .. "\n Error:" .. sMatch )
 		elseif bMatch then
 			return true
@@ -428,7 +417,7 @@ action = function(host)
 					tOutput.warning = SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ":WARNING: Not all the nodes were able to place for the scanning pahe." .. 
 							" Only " .. sHostsPre  
 				end
-				stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. "  finished."  )
+				stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. "  finished."  )
 			else
 				bExito = false
 				tOutput.warning = SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ": " .. sHostsPre

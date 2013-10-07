@@ -96,13 +96,13 @@ local From_4_to_6  = function (IPv6_Network, IPv6_Prefix, IPv4SHosts )
 		table.insert(tTabla, IPv4SHosts)
 	end
 	
-	stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+	stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 				".Map4to6: " .. " Total IPv4 objects to analyze: " ..   #tTabla  )
 	
 	for _ ,  Host in ipairs(tTabla) do 
 			
 			
-			stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+			stdnse.print_verbose(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 						".Map4to6: " .. " IPv4 Object: " ..   Host  )
 						
 			sBin4, sError = ipOps.ip_to_bin(Host) -- We have two options .. 
@@ -122,7 +122,7 @@ local From_4_to_6  = function (IPv6_Network, IPv6_Prefix, IPv4SHosts )
 							
 							IPAux = sBin6:sub(1,96) ..   ipOps.ip_to_bin(IPv4_Next)
 							IPAux = ipOps.bin_to_ip(IPAux)
-							stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+							stdnse.print_verbose(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 									".Map4to6: " .. " \t IPv6 address: " ..   IPAux  )
 							table.insert(Listado, IPAux )
 						end
@@ -136,7 +136,7 @@ local From_4_to_6  = function (IPv6_Network, IPv6_Prefix, IPv4SHosts )
 			else  -- Format: X.X.X.X
 				Host =  sBin6:sub(1,96) ..  sBin4
 				Host = ipOps.bin_to_ip(Host)
-				stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				stdnse.print_verbose(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 									".Map4to6: " .. " \t IPv6 address: " ..   Host  )
 				
 				table.insert(Listado, Host)
@@ -157,7 +157,7 @@ local Prescanning = function ()
 																"itsismx-subnet" )
 	local IPv6Knowns = nmap.registry.itsismx.PrefixesKnown
 	local iIndex
-	stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+	stdnse.print_verbose(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 			": Begining the Pre-scanning work... "    )
 																	
 																	
@@ -178,14 +178,14 @@ local Prescanning = function ()
 	
 	if IPv6Knowns ~= nil then
 		
-		stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+		stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 				"	Number of Prefixes Known from other sources: " .. #IPv6Knowns    )
 				
 		for _ , IPv6_Subnet in ipairs(IPv6Knowns) do --We need to extract the data
 			IPv6_Add, IPv6_Prefix  = Extract_IPv6_Add_Prefix(IPv6_Subnet) --  We break the data 
 			IPv6Host, sError = From_4_to_6(IPv6_Add, IPv6_Prefix,IPv4Subnets )
 			if ( sError ~= nil) then
-				stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..  " ERROR: One IPv6 subnet wasnt translate") 
+				stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..  " ERROR: One IPv6 subnet wasnt translate") 
 				tSalida[Error] = tSalida[Error] .. "\n" ..  sError
 			else -- We need to concatenate the new nodes 
 				for iIndex = 1 , #IPv6Host do 
@@ -199,15 +199,14 @@ local Prescanning = function ()
 	if IPv6User ~= nil then  -- We got tww options with this.
 		if   type(IPv6User) ==  "string" then 
 		
-			stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+			stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 				"	Number of Prefixes provided by the user:  1"     )
 				
 			IPv6_Add, IPv6_Prefix  = Extract_IPv6_Add_Prefix(IPv6User)
 			IPv6Host, sError = From_4_to_6(IPv6_Add, IPv6_Prefix,IPv4Subnets )
 			
 			if ( sError ~= nil) then
-				--print("Problema  detectado")
-				stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..  " ERROR: One IPv6 subnet wasnt translate") 
+				stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..  " ERROR: One IPv6 subnet wasnt translate") 
 				tSalida["Error"] = tSalida["Error"] .. "\n" ..  sError
 			else -- We need to concatenate the new nodes 
 				for iIndex = 1 , #IPv6Host do 
@@ -215,7 +214,7 @@ local Prescanning = function ()
 				end
 			end
 		elseif type(IPv6User) ==  "table" then 
-			stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+			stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 				"	Number of Prefixes provided by the user: " .. #IPv6User    )
 			
 			for _ , IPv6_Subnet in ipairs(IPv6User) do --We need to extract the data
@@ -223,7 +222,7 @@ local Prescanning = function ()
 				IPv6Host, sError = From_4_to_6(IPv6_Add, IPv6_Prefix,IPv4Subnets )
 				if ( sError ~= nil) then
 					--print("Problema  detectado")
-					stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..  " ERROR: One IPv6 subnet wasnt translate") 
+					stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..  " ERROR: One IPv6 subnet wasnt translate") 
 					tSalida["Error"] = tSalida["Error"] .. "\n" ..  sError
 				else -- We need to concatenate the new nodes 
 					for iIndex = 1 , #IPv6Host do 
@@ -233,7 +232,7 @@ local Prescanning = function ()
 			end
 		else 
 			-- This only mean the user pass something odd... 
-			stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..  " WARNING:  The itsismx-subnet was ignored because wrong values")
+			stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..  " WARNING:  The itsismx-subnet was ignored because wrong values")
 		end
 		
 	
@@ -250,7 +249,7 @@ local Hostscanning = function (host)
 	local aux
 	
 	--Each host is too much!
-	stdnse.print_debug(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+	stdnse.print_verbose(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 			": Begining the Host-scanning results... "    )
 
 	-- We are going to be sure don't do stupid thing on wrong register (Because we don't have
@@ -280,7 +279,13 @@ end
 
 ---
 -- The script need to be working with IPv6 (To bad can't do it with both at same time ) 
-prerule = function() return ( nmap.address_family() == "inet6") end
+prerule = function() 	  
+	if ( not(nmap.address_family() == "inet6") ) then
+		stdnse.print_verbose("%s Need to be executed for IPv6.", SCRIPT_NAME)
+		return false
+	end
+	return true 
+end
 ---
 -- We are going to check if the host up was discovered by a list generated in the prescanning
 -- phse ( Registry nmap.registry.map6t4_PreHost ).
@@ -293,7 +298,7 @@ hostrule = function(host)
 	for _, Objetivo in pairs( Totales ) do
 		bMatch, sMatch = ipOps.compare_ip(host.ip, "eq", Objetivo)
 		if bMatch == nil then
-			stdnse.print_debug(1, "\t hostrule  had a error with " ..   
+			stdnse.print_verbose(1, "\t hostrule  had a error with " ..   
 								host.ip .. "\n Error:" .. sMatch )
 		elseif bMatch then
 			return true
@@ -339,7 +344,7 @@ action = function(host)
 			end
 		
 			--Final report of the Debug Lvl of Prescanning
-			stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+			stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 								" Temptative Mapped IPv4 to IPv6 added to the scan:" ..  #tSalida.Nodos .. 
 								"\n Succesful Mapped IPv4 to IPv6 added to the scan:" ..  #Nodes )
 			-- We add those to the global registry
@@ -357,7 +362,7 @@ action = function(host)
 		 
 
 		 if ( bExito ~= true) then
-			stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+			stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 								" Error: " .. tSalida.Error)
 		 end
 		 

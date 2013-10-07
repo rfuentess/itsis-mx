@@ -119,7 +119,7 @@ Generar_DUID = function ( )
 	   else
 	      LinkAdd = "FE80000000000000" .. "24B6FD"  .. "FFFE" 
 	      Mac = "24B6FD"
-	      stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+	      stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 				"DUID-LLT ERROR  " .. " was provided a INVALID OUI value and was ignored. " )
 	   end
 	else 
@@ -136,24 +136,11 @@ Generar_DUID = function ( )
 	 
 	LinkAdd = LinkAdd .. nRand
 	Mac = Mac .. nRand
-	--print("\t Link-Layer: " .. LinkAdd )
-	--print("\t MAC       : " .. Mac  )
-	
-	--local iface, err = nmap.get_interface_info("wlan0")
-	--LinkAdd=iface.address
-	--LinkAdd="fe80000000000000062eb069ff0feaf2b83"
-	--print ( "RAYOS: " .. LinkAdd )
-	--Mac="60eb69af2b83" 
 	
 	-- Finally we put everythign togheter LinkAdd
 	DUID = DUID .. Hardware .. stime .. Mac
-	--print(" DUID (" .. #DUID / 2 .. " octetos) :" ..   DUID)
-	--print("\t Constat 1:  2"  )
-	--print("\t Hardware: " .. #Hardware/2)
-	--print("\t stime: " .. #stime/2)
-	--print("\t LinkAdd: " .. #LinkAdd/2)
 	
-	stdnse.print_debug(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+	stdnse.print_verbose(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 				"DUID-LLT: " .. " New DUID: " ..   DUID  )
 				
 	return DUID , LinkAdd
@@ -204,11 +191,7 @@ local Generar_Option_ClientID =  function ()
 	Option_Len =  itsismx.DecToHex( #DUID / 2 )
 	while #Option_Len < 4 do Option_Len = "0" .. Option_Len end 
 	
-	--print("\t Option-Code: " .. #Option_Code/2)
-	--print("\t Option_Len: " .. #Option_Len/2)
-	--print("\t DUID: " .. #DUID/2)
-	
-	stdnse.print_debug(4, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+	stdnse.print_verbose(4, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 			".Solicit.Elapsed Time: " .. 
 			" \n\t --[[Option]]-Code: " ..   Option_Code .. 
 			" \n\t Option Lenght: " ..   Option_Len .. 
@@ -291,7 +274,7 @@ local Generar_Option_IA_TA = function()
 	IAID = "f"
 	while #IAID < 8 do IAID = "0" .. IAID  end
 	
-	-- The IA_TA Options... is variable lenght and the RFC is not clear 
+	-- The IA_TA Options... is variable length and the RFC is not clear 
 	-- As we are trying to be a "first time node connecting to the network" 
 	-- Im assume we need the Satus Code NoBinding ( 0x02 ) 
 	-- or maybe none ?
@@ -306,11 +289,7 @@ local Generar_Option_IA_TA = function()
 	while #Option_Len < 4 do Option_Len = "0" .. Option_Len  end
 	IA_TA = Option_Code .. Option_Len .. IAID .. Options
 	
-	--print("\t Option_Code: " .. #Option_Code/2)
-	--print("\t Option_Len: " .. #Option_Len/2)
-	--print("\t IAID: " .. #IAID/2)
-	--print("\t Options: " .. #Options/2)
-	stdnse.print_debug(4, SCRIPT_NAME .. 
+	stdnse.print_verbose(4, SCRIPT_NAME .. 
 				".Solicit.Elapsed Time: " .. 
 				" \n\t Option-Code: " ..   Option_Len .. 
 				" \n\t Option Lenght: " ..   Option_Len .. 
@@ -366,8 +345,7 @@ local Generar_Option_IA_NA = function()
 	
 	Option_Len = itsismx.DecToHex (12 + #IA_NA_Options/2)
 	while #Option_Len < 4 do Option_Len = "0" .. Option_Len  end
-	 print( "IANA Lenght: " .. 12 + #IA_NA_Options/2 .. " YA en hex:" .. Option_Len ) 
-	
+
 	IA_NA = Option_Code .. Option_Len ..  IAID ..  T1 ..  T2  .. IA_NA_Options
 	return IA_NA , IAID
 end
@@ -391,7 +369,7 @@ local Generar_Option_Elapsed_Time = function()
 	    while #elapsed < 4 do elapsed = "0" .. elapsed end
 	end
 	
-	stdnse.print_debug(4, SCRIPT_NAME ..  
+	stdnse.print_verbose(4, SCRIPT_NAME ..  
 				".Solicit.Elapsed Time: " .. 
 				" \n\t Option-Code: " ..   option_code .. 
 				" \n\t Option Lenght: " ..   option_len .. 
@@ -510,25 +488,25 @@ local Spoof_Host_Solicit = function ()
 	    Option_Request = Generar_Option_Request()
 	end
 	
-	stdnse.print_debug(3, SCRIPT_NAME ..  
+	stdnse.print_verbose(3, SCRIPT_NAME ..  
 				".Solicit: " .. " New SOLICIT Message. ID: " ..   TransactionID  )
-	stdnse.print_debug(3, SCRIPT_NAME .. 
+	stdnse.print_verbose(3, SCRIPT_NAME .. 
 				".Solicit: " .. " Client ID: " ..   ClientID  )
 			
 	if Na_or_Ta == nil then
-	    stdnse.print_debug(3, SCRIPT_NAME .. 
+	    stdnse.print_verbose(3, SCRIPT_NAME .. 
 				".Solicit: " .. " IA-TA : " ..   IA_TA  )
 	
 	else 
-	    stdnse.print_debug(3, SCRIPT_NAME .. 
+	    stdnse.print_verbose(3, SCRIPT_NAME .. 
 				".Solicit: " .. " IA-NA : " ..   IA_NA  )
 	end		
 			
-	stdnse.print_debug(3, SCRIPT_NAME ..  
+	stdnse.print_verbose(3, SCRIPT_NAME ..  
 				".Solicit: " .. " Time: " ..   Time  )
 	
 	if Bool_Option_Req ~= nil then
-	    stdnse.print_debug(3, SCRIPT_NAME ..  
+	    stdnse.print_verbose(3, SCRIPT_NAME ..  
 				".Solicit: " .. " Option Request: " ..   Option_Request  )
 	end
 	
@@ -538,7 +516,7 @@ local Spoof_Host_Solicit = function ()
 	Host.IAID = IAID
 	Host.LinkAdd = LinkAdd
 	
-	stdnse.print_debug(2, SCRIPT_NAME ..  
+	stdnse.print_verbose(2, SCRIPT_NAME ..  
 				".Solicit: " .. " (G)Host - Link-Address: " ..   Host.LinkAdd .. --
 				" type of request: " .. Host.Type  .. 
 				"\n DUID: " ..  Host.DUID .. "\n IAID: "  .. Host.IAID )
@@ -617,7 +595,7 @@ local Spoof_Relay_Forwarder = function ( Source, SOLICIT , Subnet )
 	    sUnicast, sError = ipOps.get_last_ip  (Address, Prefix) --We use the last IPv6 add because is alway valid
 	  
 	    if sUnicast == nil then
-		stdnse.print_debug(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+		stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 				  "\n\t Relay Forward: " .. " The subnet provided (" .. stdnse.string_or_blank(Subnet) ..
 				  ")  was bad formed and throw the next error: " ..  sError )
 		return "", sError
@@ -625,24 +603,12 @@ local Spoof_Relay_Forwarder = function ( Source, SOLICIT , Subnet )
 	     
 	     
 		-- WE need to expand the IPv6 address to use all the hexadecimals
-		--print ( "linkAdd (" .. #sUnicast .. "): " .. sUnicast  ) 
-		linkAdd = itsismx.Expand_Bytes_IPv6_Address(sUnicast)
-		
+		linkAdd = itsismx.Expand_Bytes_IPv6_Address(sUnicast)		
 	      
 	    end
-	    
-	    
-	   
 	end
 	
-	
-	--print ("msg_type Message ( " .. #msg_type/2 .. " octetos): " .. msg_type )
-	--print ("hopcount Message ( " .. #hopcount/2 .. " octetos): " .. hopcount )
-	print ("linkAdd Message ( " .. #linkAdd/2 .. " octetos): " .. linkAdd )
-	--print ("peerAdd Message ( " .. #peerAdd/2 .. " octetos): " .. peerAdd )
-	--print ("Options Message ( " .. #Options/2 .. " octetos): " .. Options )
-	
-	stdnse.print_debug(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+	stdnse.print_verbose(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 				"\n\t Relay Forward: " .. " msg_type: " ..   msg_type .. 
 				"\n\t hopcount: " .. msg_type  .. 
 				"\n\t linkAdd: " .. linkAdd  .. 
@@ -700,9 +666,7 @@ local Verify_Relay_Reply = function ( PeerAddress,  Relay_Reply , Subnet )
       local Candidata, bBool, sBool
       
       hex_pos , hex_dhcp_data = bin.unpack("H".. tostring(Longitud), RELAY ,49+38 )
-
-      --print(" Adverstiment Message:  Pos: " .. hex_pos .. " \n\t" ..  hex_dhcp_data) 
-      
+   
       -- Should be a valid one but we are going to be sure. 
       if ( hex_dhcp_data:sub(1,2) ~= "02") then
 	return false, "It's not a Solicit message"
@@ -727,21 +691,19 @@ local Verify_Relay_Reply = function ( PeerAddress,  Relay_Reply , Subnet )
       
       if (Na_or_Ta ) then  -- IA-NA
       
-	     print("IA-NA") 
-      
 	    offset= 7+2+4
 	    Campos = hex_dhcp_data:sub(offset) -- We extract until "Option-len"
 	    
 	    Longitud = Campos:sub(1,4)
 	    
-	    stdnse.print_debug(3, "Client ID Option length: " .. tonumber(Longitud,16) .. " bytes") 
+	    stdnse.print_verbose(3, "Client ID Option length: " .. tonumber(Longitud,16) .. " bytes") 
 	    
 	    -- Now the Server ID Option
 	    offset= 7+2+4+4+ tonumber(Longitud,16)*2 + 4
 	    Campos = hex_dhcp_data:sub(offset) -- We extract until "Option-len"
 	    Longitud = Campos:sub(1,4)
 	     
-	      stdnse.print_debug(3, "Server ID Option length: " .. tonumber(Longitud,16) .. " bytes") 
+	      stdnse.print_verbose(3, "Server ID Option length: " .. tonumber(Longitud,16) .. " bytes") 
 	     
 	     -- Identity Association for Non-temporary Address
 	     offset = offset + tonumber(Longitud,16)*2 + 4
@@ -775,11 +737,9 @@ local Verify_Relay_Reply = function ( PeerAddress,  Relay_Reply , Subnet )
 		return true, Campos:sub(1,32)
 	   
       else
-	     print("IA-TA") 
-		 
 		 -- TODO: Need to add those lines when Find a good document talking about the format
 		 -- The RFC is unclear how to address it.
-      
+		stdnse.print_verbose(1, "IA-TA is not yet implemented.!")
       end
       
 	  
@@ -795,7 +755,7 @@ end
 -- The script need to be working with IPv6 
 prerule = function()  
   if ( not(nmap.is_privileged()) ) then
-		stdnse.print_verbose("%s not running for lack of privileges.", SCRIPT_NAME)
+		stdnse.print_verbose("%s  with lack of privileges (and we need GNU/Linux).", SCRIPT_NAME)
 		return false
 	end 
  
@@ -808,7 +768,6 @@ prerule = function()
    --local iface, err = nmap.get_interface_info("eth0")
    if ( nmap.get_interface () == nil ) then 
       stdnse.print_verbose(" The NSE Script need to work with a Ethernet Interface, Please use the argument -e <Interface>. " )
-      stdnse.print_debug  (" The NSE Script need to work with a Ethernet Interface, Please use the argument -e <Interface>. " )
       return false 
    end
    
@@ -818,11 +777,11 @@ prerule = function()
  
     if ( err ~=nil) then
 	--stdnse.print_verbose( "dhcv6 can't be initialized due the next ERROR: " ..  err )
-	stdnse.print_debug  (1, "dhcv6 can't be initialized due the next ERROR: " ..  err )
+	stdnse.print_verbose  (1, "dhcv6 can't be initialized due the next ERROR: " ..  err )
 	return false;
     elseif iface.link ~= "ethernet"  then
 	--stdnse.print_verbose(" The NSE Script need to work with a Ethernet Interface, Please use the argument -e <Interface> to select it. " )
-	stdnse.print_debug  (1, " The NSE Script need to work with a Ethernet Interface, Please use the argument -e <Interface> to select it. " )
+	stdnse.print_verbose  (1, " The NSE Script need to work with a Ethernet Interface, Please use the argument -e <Interface> to select it. " )
 	return false
     end
  
@@ -878,7 +837,7 @@ local Transmision_Recepcion = function (  IPv6src, IPv6dst , Prtsrc, Prtdst , Me
 	Tcpdumpfilter = "ip6 dst  " .. IPv6src  .. " and udp src port 547 and udp dst port 547" 
 	--Tcpdumpfilter = "ip6 src  " .. IPv6src 
 
-	stdnse.print_debug(5, "\t The DCPdump filter:  \t" ..   Tcpdumpfilter )
+	stdnse.print_verbose(5, "\t The DCPdump filter:  \t" ..   Tcpdumpfilter )
 	pcap:pcap_open(Interfaz.device, 1500, true, Tcpdumpfilter) 
 	
 	
@@ -947,8 +906,7 @@ local Transmision_Recepcion = function (  IPv6src, IPv6dst , Prtsrc, Prtdst , Me
 	
 	
 	if (status==nil) then -- No packet captured (Timeout)
-	     -- print("NO PCAP!!!")
-		 stdnse.print_debug(3, " The subnet "  .. Subnet .. " seem not be avaliable" ) 
+		 stdnse.print_verbose(3, " The subnet "  .. Subnet .. " seem not be avaliable" ) 
 		 Bool = false
 	elseif status==true then  -- We got a packet ... time to work with it	 
 		 -- en teoria en este punto tengo un paquete de longitud cercana a 100-110 bytes
@@ -956,9 +914,9 @@ local Transmision_Recepcion = function (  IPv6src, IPv6dst , Prtsrc, Prtdst , Me
 		Bool , err = Verify_Relay_Reply(src_ip6, l3_data,  Subnet ) 
 	 
 		if Bool == false then 
-			stdnse.print_debug(1, " The subnet "  .. Subnet .. " got this error: "  ..  err)
+			stdnse.print_verbose(1, " The subnet "  .. Subnet .. " got this error: "  ..  err)
 		else
-			stdnse.print_debug(3, " The subnet "  .. Subnet .. " is Online")
+			stdnse.print_verbose(3, " The subnet "  .. Subnet .. " is Online")
 		end
 	    
 	end
@@ -1004,16 +962,14 @@ local Extaer_Subredes = function(Subnet)
 		  NewNet = Binario:sub(1,Prefijo) .. Valor .. Binario:sub(NewPrefix+1 , 128)
 		  NewNet = ipOps.bin_to_ip(NewNet)
 		  table.insert(Auxiliar, NewNet .. "/" .. NewPrefix)
-		  --print("\t Will be added: " .. NewNet .. "/" .. NewPrefix)
 		end 
 	    
 	    else	   -- Error, so we escape this entry 
-		  stdnse.print_debug(3, SCRIPT_NAME  .. "\t\t The next provided subnet has wrong syntax: "  .. 
+		  stdnse.print_verbose(3, SCRIPT_NAME  .. "\t\t The next provided subnet has wrong syntax: "  .. 
 			Subnet ..   mensaje)  
 	    end
 	  
 	  else 
-		--print("\t\t Will be added: " .. Subnet)
 	       table.insert(Auxiliar, Subnet) -- X:X:X:X::/YY
 	  end
        
@@ -1028,14 +984,13 @@ local Listado_Subredes = function ()
     local TotalNets, Aux = {} , {}
     local Subredes = stdnse.get_script_args( "itsismx-dhcpv6.subnets" )
     --local NetworkRanges =  stdnse.get_script_args( "itsismx-dhcpv6.NetRange" )
-   -- print("Total de entradas del argumento: " .. #Subredes)
     
     
     local index, campo, Subnets
     local interface_name 
     if Subredes ~= nil then
 	if type(Subredes) ==  "table" then
-	--  print("Es una tabla... DAH!")
+
 	    for index, campo in ipairs(Subredes) do 
 	      Aux = Extaer_Subredes(campo)
 	      for _, Subnets in ipairs(Aux) do table.insert(TotalNets,Subnets ) end
@@ -1050,7 +1005,7 @@ local Listado_Subredes = function ()
     else -- We need  provided at least one valid sub-net (Future works will 
 	 -- let use the current interface IPv6 subnet (48 bits) 
 	
-	stdnse.print_debug(1, SCRIPT_NAME  .. " ERROR: Need to provided at least one " .. 
+	stdnse.print_verbose(1, SCRIPT_NAME  .. " ERROR: Need to provided at least one " .. 
 			" single subnet to test. Use the argument itsismx-dhcpv6.subnets "  )
 	
     end
@@ -1078,10 +1033,7 @@ action = function()
 	    microseconds = tonumber( microseconds ) 
 	end  
 	
-	
-	
 	tOutput.Subnets = {}  
-	--print("HEY!")
 	itsismx.Registro_Global_Inicializar("dhcpv6") -- We prepare our work!
 	
 	local Mensaje, Host, Error, Relay
@@ -1101,10 +1053,7 @@ action = function()
 	    -- (Which will be left for future work we need to use a REAL IPv6 source address). 
 	    if  Boolean_IPv6Address == nil  then
 			local iface, err = nmap.get_interface_info(nmap.get_interface ())
-			
-			-- local ifacekey, ifacedata
-			-- for ifacekey, ifacedata in pairs(iface) do print(ifacekey, ifacedata) end 
-		
+
 			-- This should be redudant due we already did this on the Pre-Rule
 			if ( err ~=nil  ) then 
 				tSalida.Error = err
@@ -1126,7 +1075,6 @@ action = function()
 			table.insert(tSalida.Nodos,Subnet)
 	   end
 	   
-	   
 	   --Before we pass to the next sub/net candidate we must wait a little time
 	   -- Normally Nmap will love to create multithreadings, however WE MUST 
 	   -- be careful and not produce to manny DHCPv6 requests at same time
@@ -1135,17 +1083,15 @@ action = function()
 	
 	end
 	
-
-	
 	-- There is at least one node on the list ?
 	if (bExito) then 
 		nmap.registry.itsismx.PrefixesKnown = tSalida.Nodos
-		stdnse.print_debug(1, SCRIPT_NAME  .. " Were added  " .. #tSalida.Nodos  ..  
+		stdnse.print_verbose(1, SCRIPT_NAME  .. " Were added  " .. #tSalida.Nodos  ..  
 							" subnets to scan!"   )
 	else
 		itsismx.Registro_Global_Inicializar("PrefixesKnown") -- We prepare our work!
 		nmap.registry.itsismx.PrefixesKnown = tSalida.Nodos
-		stdnse.print_debug(1, SCRIPT_NAME  .. " Not sub-net were added to the scan list!"   )
+		stdnse.print_verbose(1, SCRIPT_NAME  .. " Not sub-net were added to the scan list!"   )
 	end
 	
 
