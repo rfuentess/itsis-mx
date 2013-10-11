@@ -122,8 +122,8 @@ local From_4_to_6  = function (IPv6_Network, IPv6_Prefix, IPv4SHosts )
 							
 							IPAux = sBin6:sub(1,96) ..   ipOps.ip_to_bin(IPv4_Next)
 							IPAux = ipOps.bin_to_ip(IPAux)
-							stdnse.print_verbose(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-									".Map4to6: " .. " \t IPv6 address: " ..   IPAux  )
+							--stdnse.print_verbose(5, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+							--		".Map4to6: " .. " \t IPv6 address: " ..   IPAux  )
 							table.insert(Listado, IPAux )
 						end
 						IPv4_Next = itsismx.GetNext_AddressIPv4(IPv4_Next)
@@ -179,7 +179,7 @@ local Prescanning = function ()
 	if IPv6Knowns ~= nil then
 		
 		stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-				"	Number of Prefixes Known from other sources: " .. #IPv6Knowns    )
+				"	Number of Subnets Known from other sources: " .. #IPv6Knowns    )
 				
 		for _ , IPv6_Subnet in ipairs(IPv6Knowns) do --We need to extract the data
 			IPv6_Add, IPv6_Prefix  = Extract_IPv6_Add_Prefix(IPv6_Subnet) --  We break the data 
@@ -200,7 +200,7 @@ local Prescanning = function ()
 		if   type(IPv6User) ==  "string" then 
 		
 			stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-				"	Number of Prefixes provided by the user:  1"     )
+				"	Number of Subnets  provided by the user:  1"     )
 				
 			IPv6_Add, IPv6_Prefix  = Extract_IPv6_Add_Prefix(IPv6User)
 			IPv6Host, sError = From_4_to_6(IPv6_Add, IPv6_Prefix,IPv4Subnets )
@@ -215,7 +215,7 @@ local Prescanning = function ()
 			end
 		elseif type(IPv6User) ==  "table" then 
 			stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-				"	Number of Prefixes provided by the user: " .. #IPv6User    )
+				"	Number of Subnets provided by the user: " .. #IPv6User    )
 			
 			for _ , IPv6_Subnet in ipairs(IPv6User) do --We need to extract the data
 				IPv6_Add, IPv6_Prefix  = itsismx.Extract_IPv6_Add_Prefix(IPv6_Subnet) --  We break the data 
@@ -284,6 +284,11 @@ prerule = function()
 		stdnse.print_verbose("%s Need to be executed for IPv6.", SCRIPT_NAME)
 		return false
 	end
+	
+	if ( stdnse.get_script_args('newtargets')==nil ) then
+		stdnse.print_verbose(1, "%s Will only work on pre-scanning. The argument newtargets is needed for the host-scanning to work.", SCRIPT_NAME)
+	end
+	
 	return true 
 end
 ---

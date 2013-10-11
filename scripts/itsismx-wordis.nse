@@ -76,7 +76,7 @@ local CrearRangoHosts = function (Direccion, Prefijo, TablaPalabras, User_Segs, 
 	
 	-- Its simple, we have (128 -  n ) / ( 16 )
 	-- The first part are how many bits are left to hosts portion 
-	-- the Second are the siz of the segments ( 16 bits). 
+	-- the Second are the size of the segments ( 16 bits). 
 	-- We need to use Ceiling because 4.3  don't have sense... 
 	if (User_Segs == nil  ) then
 		MaxRangoSegmentos  = math.ceil( (128 - Prefijo)/16 )
@@ -112,8 +112,8 @@ local CrearRangoHosts = function (Direccion, Prefijo, TablaPalabras, User_Segs, 
 				sError = sError .. "\n" .. Error
 			else 
 				table.insert(Candidatos , Host )
-				stdnse.print_verbose(4, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-					":  Added IPv6 address " .. Host .. " to the host scanning list...")	
+				--stdnse.print_verbose(5, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				--	":  Added IPv6 address " .. Host .. " to the host scanning list...")	
 			end
 		end
 	end
@@ -287,6 +287,11 @@ prerule = function()
 		stdnse.print_verbose("%s Need to be executed for IPv6.", SCRIPT_NAME)
 		return false
 	end
+	
+	if ( stdnse.get_script_args('newtargets')==nil ) then
+		stdnse.print_verbose(1, "%s Will only work on pre-scanning. The argument newtargets is needed for the host-scanning to work.", SCRIPT_NAME)
+	end
+	
 	return true
 end
 

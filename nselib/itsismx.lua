@@ -28,9 +28,9 @@ _ENV = stdnse.module("itsismx", stdnse.seeall)
 	1 - Strings  representing bits  
 	2- 4 numbers of 32 bits
 
-	Originally think to use class for those bu  have problem 
+	Originally think to use class for those but  have problem 
 	creating independently instances of the class (because LUA it-  not 
-	a oriented object language)  so at the end choice the use the clasical 
+	a oriented object language)  so at the end choice the use the classical 
 	aproach of functions.
 	
 --]]
@@ -375,20 +375,14 @@ local GetNext_AddressIPv6_4Structure = function(IPv6Address, Prefix)
 	local UNO
 	local Next, Current
 	
-	--print("\t lineal")
 	Current = 	{ ParteAltaH = 0, ParteAltaL = 0, ParteBajaH = 0, ParteBajaL = 0 }
 	UNO = 		{ ParteAltaH = 0, ParteAltaL = 0, ParteBajaH = 0, ParteBajaL = 1 }
 	
-	--print(#Current)
-	--print(Current.ParteAltaH ..  Current.ParteAltaL .. Current.ParteBajaH  .. Current.ParteBajaL)
-	--print(IPv6Address)
 	Current.ParteAltaH =  Bits32_BinToNumber( IPv6Address:sub(1,32)  )
 	Current.ParteAltaL =  Bits32_BinToNumber( IPv6Address:sub(33,64)  )		
 	Current.ParteBajaH =  Bits32_BinToNumber( IPv6Address:sub(65,96)  )
 	Current.ParteBajaL =  Bits32_BinToNumber( IPv6Address:sub(97,128)  )
 	
-	--print(#Current)
-	--print(#UNO)
 	-- Now we add those numbers and make Casting (abusing a little of Lua)
 	Next = Bits32_suma128(Current,UNO )
 	Next = Bits32_NumberToBin( Next.ParteAltaH) .. 
@@ -433,12 +427,10 @@ end
 	-- 120 prefix left  8 bits to search
 		
 	--First... Which mechanism?	
-		
-	--print(IPv6Address)
 	IPv6Address = ipOps.ip_to_bin(IPv6Address)	 	
 	if 	IPv6_Mech_Operator == nil then	
-		Next = GetNext_AddressIPv6_String(IPv6Address, Prefix)
-		
+		--Next = GetNext_AddressIPv6_String(IPv6Address, Prefix)
+		Next = GetNext_AddressIPv6_4Structure(IPv6Address, Prefix)
 	elseif IPv6_Mech_Operator:lower(IPv6_Mech_Operator) == "string"  then --  We create two specials tables
 		
 		Next = GetNext_AddressIPv6_String(IPv6Address, Prefix)
@@ -446,7 +438,7 @@ end
 	elseif  IPv6_Mech_Operator:lower(IPv6_Mech_Operator) == "number" then	
 		
 		Next = GetNext_AddressIPv6_4Structure(IPv6Address, Prefix)
-	end	-- For the moment are the only case, is something come wrong Next is a invalid IPv6 address
+	end	-- For the moment are the only cases, if something come wrong Next is a invalid IPv6 address
 		
 		
 	return ipOps.bin_to_ip(Next)

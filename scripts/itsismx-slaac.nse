@@ -30,13 +30,13 @@ description=[[
 
 -- 
 -- @args newtargets  MANDATORY Need for the host-scaning to succes 
--- @args vendors	 (Optional) String/Table The user can provided companies names (Like Apple, Dell, HP, etc.)
---					 which have a valid register for a OUI.  The user can too add a specific OUI (5855CA , 
---					 6C9B02, 0CD292, etc.) when has done homework and is very sure can reduce the search.
---					If the vms argument isn’t provided the default value is “DELL” otherwise will be empty. 
--- @args vms		(Optional) If added will search SLAACs based on well known 
---						Virtual MAchines technologies, the user can add those arguments:
---						(DEFAULT)	:  Will search for VMware, Virtual Box, Paralalles,
+-- @args itsismx-slaac.vendors	 (Optional) String/Table The user can provided companies names (Like Apple, Dell, HP, etc.)
+--					 				which have a valid register for a OUI.  The user can too add a specific OUI (5855CA , 
+--					 				6C9B02, 0CD292, etc.) when has done homework and is very sure can reduce the search.
+--									If the vms argument isn’t provided the default value is “DELL” otherwise will be empty. 
+-- @args itsismx-slaac.vms		(Optional) If added will search SLAACs based on well known 
+--								Virtual MAchines technologies, the user can add those arguments:
+--								(DEFAULT)	:  Will search for VMware, Virtual Box, Paralalles,
 --									   Virtual PC and QEMU VMs
 --						"W"			:  Will search for VMware VMs (Static and Dynamic)
 --						"wS"		:  Will search for VMware VMs with static/manual configuration MAC address.
@@ -48,7 +48,8 @@ description=[[
 --						"M"			:  Will search for  Microsoft Virtual PC VMs
 --						"L"			:  Will search for  Linux  QEMU
 --						"WPVML"		:  Equivalent to the defualt option.
---						"pVpD"		:  Equivalent to "P" ("P" override the others two)  
+--						"pVpD"		:  Equivalent to "P" ("P" override the others two)
+--  
 -- @args itsismx-slaac.nbits		(Optional)  Number of 1-24. This indicate how many bits to calculate or 
 --									what is the same: How much host to calculate (2^nbits).  By default the 
 --									is 11 (Except VMware case which is lower because his range is 1-16).
@@ -116,8 +117,8 @@ local Brute_Range = function( IPv6Base, nBits )
 	-- Now the hard part...   numbers in NSE (LUA 5.2) are limited to 10^14..
 	-- So...  we use our special mechanism.
 	repeat  
-		stdnse.print_verbose(4, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-					".Vendors.Address:  Added IPv6 address " .. TheNext .. " to the host scanning list...")
+--		stdnse.print_verbose(5, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+--					".Vendors.Address:  Added IPv6 address " .. TheNext .. " to the host scanning list...")
 		table.insert(Hosts,TheNext)
 		TheNext = itsismx.GetNext_AddressIPv6(TheNext,Prefix, IPv6ExMechanism)
 		bool ,err = ipOps.ip_in_range(TheNext, IPv6Base .. "00:0/" .. Prefix)
@@ -182,8 +183,8 @@ local Random_Range = function ( IPv6Base, nBits )
 				hHost = "0" .. hHost
 			end
 			hHost = hHost:sub(1,2) .. ":" .. hHost:sub(3,6)
-			stdnse.print_verbose(4, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-					".Vendors.Address:  Addeding IPv6 address " .. IPv6Base .. hHost .. " to the host scanning list..." )
+--			stdnse.print_verbose(5, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+--					".Vendors.Address:  Addeding IPv6 address " .. IPv6Base .. hHost .. " to the host scanning list..." )
 			 
 			table.insert( Hosts, IPv6Base .. hHost)
 		end
@@ -247,8 +248,8 @@ local Vmware_Range_000C29WellKnown = function( IPv6Base, sHexadecimal , IPv4Cand
 						
 		repeat  
 	
-			stdnse.print_verbose(4, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-						" VMware(dynamic):  Added IPv6 address " .. TheNext .. " to the host scanning list...")
+--			stdnse.print_verbose(5, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+--						" VMware(dynamic):  Added IPv6 address " .. TheNext .. " to the host scanning list...")
 			table.insert(hosts,TheNext)
 			TheNext = itsismx.GetNext_AddressIPv6(TheNext,120, IPv6ExMechanism)
 			bool ,sError = ipOps.ip_in_range(TheNext, IPv6Prefix .. "/120" )
@@ -542,7 +543,7 @@ local getSlaacCandidates = function ( IPv6Prefix , HighPart )
 	
 	local hosts, sError =nil, ""
 	local _, OUI, hexadecimal, bitsAlto
-	local Metodo, NumBits = stdnse.get_script_args("itsismx.slaac.compute", "itsismx-slaac.nbits")
+	local Metodo, NumBits = stdnse.get_script_args("itsismx-slaac.compute", "itsismx-slaac.nbits")
 	local IPv6Base, IPv6Segmentos
 	local FinalList, Candidate, Index = {}
 	-- RFC 4291  The last 64 bits to create will have this format:
@@ -725,7 +726,7 @@ local getMacPrefix = function ( Vendedores, MacList   )
 			end
 		
 			stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-				": " .. " Were addedd  " ..   #hLista .. " OUI for the vendor: " .. sUserMac  )
+				": " .. " Were added  " ..   #hLista .. " OUI for the vendor: " .. sUserMac  )
 		end
 	end
 
@@ -744,7 +745,7 @@ local Prescanning = function ()
 
 	local MacList, PrefixAux, _
 	local bSalida, tSalida = false , { Nodos={}, Error=""}
-	local MacUsers,IPv6User,VM  = stdnse.get_script_args("itsismx.slaac.vendors","itsismx-subnet","itsismx.slaac.vms")
+	local MacUsers,IPv6User,VM  = stdnse.get_script_args("itsismx-slaac.vendors","itsismx-subnet","itsismx-slaac.vms")
 	local IPv6Knowns = nmap.registry.itsismx.PrefixesKnown
 	local PrefixHigh, IPv6Total = {}, {}
 	local IPv6_Add, IPv6_Prefix 
@@ -881,7 +882,7 @@ local Prescanning = function ()
 		--First we must be sure those are 64 bits of Prefix
 		IPv6_Add, IPv6_Prefix  = itsismx.Extract_IPv6_Add_Prefix(PrefixAux)
 		if( IPv6_Prefix ~= 64) then
-			tSalida.Error = tSalida.Error .. "\n" .. PrefixAux .. " Must have a prefix of 64 (Was ommited)"  
+			tSalida.Error = tSalida.Error .. "\n" .. PrefixAux .. " Must have a prefix of 64 (Was omited)"  
 		else
 			
 			tSalida.Nodos,tSalida.Error = getSlaacCandidates ( IPv6_Add , PrefixHigh ) 
@@ -911,7 +912,7 @@ local Hostscanning = function( host)
 	
 	aux = nmap.registry.itsismx.sbkmac
 	if aux == nil then 
-		tSalida.Error = "The global register Itsismx wasn't initialzed correctly (There is a global function for that!)"
+		tSalida.Error = "The global register Itsismx wasn't initialized correctly (There is a global function for that!)"
 		return false, tSalida
 	end
 	
@@ -925,7 +926,18 @@ local Hostscanning = function( host)
 end
 ---
 -- The script need to be working with IPv6
-prerule = function() return ( nmap.address_family() == "inet6") end
+prerule = function() 
+	  if ( not(nmap.address_family() == "inet6") ) then
+		stdnse.print_verbose("%s Need to be executed for IPv6.", SCRIPT_NAME)
+		return false
+	end
+	
+	if ( stdnse.get_script_args('newtargets')==nil ) then
+		stdnse.print_verbose(1, "%s Will only work on pre-scanning. The argument newtargets is needed for the host-scanning to work.", SCRIPT_NAME)
+	end
+	
+	return true 
+end
 ---
 -- We need to confirm that host is one of the previous pre-scanning phase nodes  
 -- and return true.
