@@ -66,6 +66,9 @@ description=[[
 --									he assume to know some part of the last 16 bits of the IPv6 address 
 --									(maybe from the sub-networks scheme)  he can add them as binary value
 --									with this argument.
+-- @args itsismx-SaveMemory			This will avoid to create registries for the final report.  This is very 
+--									useful if the machine is having problem with the memory about all with 
+--									bigger search.
 
 -- @args itsismx-subnet 			IT's table/single  IPv6 address with prefix
 --	   (Ex. 2001:db8:c0ca::/48 or { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 } )
@@ -75,6 +78,9 @@ description=[[
 --			"number"	- 4 Numbers of 32 bits (Mathematical operations)
 --			"string"		- (Default) 128 Characters on string  (Pseudo Boolean operations)
 --
+
+
+
 -- Version 2.1
 --	Updated 11/10/2013	- v2.1 	- A strong change for a more friendly way to use the memory.
 --	Updated 25/04/2013	- v1.3	- First version at full power! (and minor corrections)
@@ -98,6 +104,7 @@ local Brute_Range = function( IPv6Base, nBits )
 	local  Prefix  = 0
 	-- This can be affected by itsismx-IPv6ExMechanism
 	local IPv6ExMechanism = stdnse.get_script_args( "itsismx-IPv6ExMechanism" )
+	local SaveMemory = stdnse.get_script_args( "itsismx-SaveMemory" )
 	
 	--nBits with brute force mean how many samples we are to take, this will impact on the 
 	-- Prefix
@@ -124,18 +131,19 @@ local Brute_Range = function( IPv6Base, nBits )
 		--This script can be the most dangerous from all setting due the high number of nodes we could search
 		-- The best is not abuse of the memory and only return small amount of data.
 		bool ,err =  target.add(TheNext ) 
-		if ( bool ) then
+		if ( (bool) and not(SaveMemory) ) then
 			table.insert( nmap.registry.slaac_PreHost, TheNext )	
-		else 
-			stdnse.print_verbose(6, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-					".Brute-Mechanis: Had been a error adding the node " .. TheNext ..  " which is: " .. err )
+		elseif not(bool) then
+				stdnse.print_verbose(6, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+						".Brute-mechanism: Had been a error adding the node " .. TheNext ..  " which is: " .. err )
 		end
+			
 			
 		TheNext = itsismx.GetNext_AddressIPv6(TheNext,Prefix, IPv6ExMechanism)
 				
 	until not ipOps.ip_in_range(TheNext, IPv6Base .. "00:0/" .. Prefix)
 	
-	
+
 	return #nmap.registry.slaac_PreHost
 end
 
@@ -154,12 +162,13 @@ local Random_Range = function ( IPv6Base, nBits )
 	-- The first one is going to be random values In a number of 24 bits
 	local  MaxNodos =  10
 	local bool ,err
+	local SaveMemory = stdnse.get_script_args( "itsismx-SaveMemory" )
 	
 	--First, how many bits we are going to work ?
 	if nBits == nil then 
 		nBits = 11
 		MaxNodos =  math.pow(2, nBits)
-	elseif tonumber(nBits) > 2 and  tonumber(nBits) <= 24 then
+	elseif tonumber(nBits) > 1 and  tonumber(nBits) <= 24 then
 		MaxNodos =  math.pow(2, nBits)
 	else 						-- Something wrong, we must be careful
 		return nil
@@ -202,10 +211,10 @@ local Random_Range = function ( IPv6Base, nBits )
 			 
 			-- We inser the host to the scan list
 			bool ,err =  target.add(IPv6Base .. hHost ) 
-			if ( bool ) then
+			if ( (bool) and not(SaveMemory) ) then
 				table.insert( nmap.registry.slaac_PreHost, IPv6Base .. hHost )	
-			else 
-				stdnse.print_verbose(4, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+			elseif not(bool) then
+				stdnse.print_verbose(6, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 						".Random-mechanism: Had been a error adding the node " .. IPv6Base .. hHost ..  " which is: " .. err )
 			end
 			
@@ -213,7 +222,6 @@ local Random_Range = function ( IPv6Base, nBits )
 		end
 
 	end
-	
 	return #nmap.registry.slaac_PreHost
 end
 
@@ -228,6 +236,8 @@ local Vmware_Range_000C29WellKnown = function( IPv6Base, sHexadecimal , IPv4Cand
 	local sIPv4Ldot3, sIPv4Ldot4, sIPv6P120 
 	local IPv6Prefix, TheNext, TheLast
 	local hosts = {}
+	local bool ,err
+	local SaveMemory = stdnse.get_script_args( "itsismx-SaveMemory" )
 	for _, Candidato in ipairs(IPv4Candidatos) do
 		
 		-- For each candidate we retrieve the last 16 bits.
@@ -274,20 +284,32 @@ local Vmware_Range_000C29WellKnown = function( IPv6Base, sHexadecimal , IPv4Cand
 	
 --			stdnse.print_verbose(5, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 --						" VMware(dynamic):  Added IPv6 address " .. TheNext .. " to the host scanning list...")
-			table.insert(hosts,TheNext)
-			TheNext = itsismx.GetNext_AddressIPv6(TheNext,120, IPv6ExMechanism)
-			bool ,sError = ipOps.ip_in_range(TheNext, IPv6Prefix .. "/120" )
-			if ( sError ~= nil) then
-				stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-						" VMware(dynamic): Error generating range of IPv6 address " .. sError )
-				return nil
+			
+			--table.insert(hosts,TheNext)
+			bool ,err =  target.add(TheNext ) 
+			if ( (bool) and not(SaveMemory) ) then
+				table.insert( nmap.registry.slaac_PreHost, TheNext )	
+			elseif not(bool) then
+					stdnse.print_verbose(6, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+							" VMware(dynamic with well-known IP):: Had been a error adding the node " .. TheNext ..  " which is: " .. err )
 			end
+			
+			
+			TheNext = itsismx.GetNext_AddressIPv6(TheNext,120, IPv6ExMechanism)
+			
+			-- bool ,sError = ipOps.ip_in_range(TheNext, IPv6Prefix .. "/120" )
+			-- if ( sError ~= nil) then
+				-- stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+						-- " VMware(dynamic): Error generating range of IPv6 address " .. sError )
+				-- return nil
+			-- end
 			
 		until not ipOps.ip_in_range(TheNext, IPv6Prefix .. "/120" )
 		
 	end
 	
-	return  hosts
+	print("WTF")
+	return  #nmap.registry.slaac_PreHost
 end
 
 
@@ -301,13 +323,14 @@ end
 -- @args	Metodo		(Optional) String  random values or sweep
 -- @return	Table		Valid IPv6 hosts address ( or nil if there was a error)
 local Vmware_Range_000C29 = function ( IPv6Base, nBits, Metodo )
-	local hosts, sError = {} , nil
+	local hosts, sError = 0 , nil
 	local IPv4Candidatos, Num_Aleatorios,iC, iAux = {},{},0
 	local IPv4Argumentos, BitsKnown = stdnse.get_script_args("itsismx-slaac.vmipv4","itsismx-slaac.knownbits")
 	local IPv6ExMechanism = stdnse.get_script_args( "itsismx-IPv6ExMechanism" )
 	local TotalMuestras, Wellknown, RangoAleatorio
 	local Segmentos,sError, Candidato,IPv6Prefix,IPv6Candidato
-	
+	local bool ,err
+	local SaveMemory = stdnse.get_script_args( "itsismx-SaveMemory" )
 	--  ccccccugcccccccc:cccccccc
 	--  0000000000001100:00101001
 	-- ___________________________
@@ -475,22 +498,38 @@ local Vmware_Range_000C29 = function ( IPv6Base, nBits, Metodo )
 							
 			repeat  
 		
-				stdnse.print_verbose(4, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				stdnse.print_verbose(5, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 							" VMware(dynamic):  Added IPv6 address " .. TheNext .. " to the host scanning list...")
-				table.insert(hosts,TheNext)
-				TheNext = itsismx.GetNext_AddressIPv6(TheNext,120, IPv6ExMechanism)
-				bool ,sError = ipOps.ip_in_range(TheNext, IPv6Candidato .. "/120" )
-				if ( sError ~= nil) then
-					stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-							" VMware(dynamic): Error generating range of IPv6 address " .. sError )
-					return nil
+				
+				--table.insert(hosts,TheNext)
+				bool ,err =  target.add(TheNext ) 
+				if ( (bool) and not(SaveMemory) ) then
+					table.insert( nmap.registry.slaac_PreHost, TheNext )	
+					
+				elseif not(bool) then
+						stdnse.print_verbose(6, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+								"  VMware(dynamic):: Had been a error adding the node " .. TheNext ..  " which is: " .. err )
 				end
+				
+				
+				
+				TheNext = itsismx.GetNext_AddressIPv6(TheNext,120, IPv6ExMechanism)
+				
+				
+				
+				-- bool ,sError = ipOps.ip_in_range(TheNext, IPv6Candidato .. "/120" )
+				
+				-- if ( sError ~= nil) then
+					-- stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+							-- " VMware(dynamic): Error generating range of IPv6 address " .. sError )
+					-- return nil
+				-- end
 				
 			until not ipOps.ip_in_range(TheNext, IPv6Candidato .. "/120" )
 		
 	end
 	
-	return hosts  
+	return #nmap.registry.slaac_PreHost  
 end
 
 ---
@@ -501,7 +540,7 @@ end
 -- @args	Metodo		(Optional) String  random values or sweep
 -- @return	Table		Valid IPv6 hosts address ( or nil if there was a error)
 local Vmware_Range_005056 = function ( IPv6Base, nBits, Metodo )
-	local hosts, sError,IPv6Segmentos = {} , nil
+	local hosts, sError,IPv6Segmentos = nil , nil, nil
 	
 	 --  ccccccugcccccccc:cccccccc
 	 --  0000000001010000:01010110
@@ -546,7 +585,7 @@ local Vmware_Range_005056 = function ( IPv6Base, nBits, Metodo )
 	else	-- ERROR!
 		return nil, "ERROR: The compute mechanism is incorrect: " .. Metodo
 	end
-		
+	
 	return hosts , sError
 end
 
@@ -564,7 +603,7 @@ end
 -- @return	String		Error message when there is one (Nil otherwise)
 local getSlaacCandidates = function ( IPv6Prefix , HighPart ) 
 	
-	local hosts, sError =nil, ""
+	local hosts, sError, aux =nil, ""
 	local _, OUI, hexadecimal, bitsAlto
 	local Metodo, NumBits = stdnse.get_script_args("itsismx-slaac.compute", "itsismx-slaac.nbits")
 	local IPv6Base, IPv6Segmentos
@@ -657,22 +696,26 @@ local getSlaacCandidates = function ( IPv6Prefix , HighPart )
 			--	Manually configured MAC address of the VMs: 00:50:56:XX:YY:ZZ
 			-- 	Dynamic  configured MAC address of the VMs: 00:0C:29:WW:TT:UU
 			
-			hosts = Vmware_Range_000C29(IPv6Prefix,NumBits, Metodo  )
+			hosts, sError = Vmware_Range_000C29(IPv6Prefix,NumBits, Metodo  )
 			
 			-- Uh... we need to get ready hosts ofr the next one...
 			if hosts == nil then
 				sError =  " \n The compute of VMware 00:0C:29:WW:TT:UU had a error for the prefix  "  .. 
-						IPv6Prefix .. " you can use -dddd for find the error (probably human)."
+						IPv6Prefix .. " you can use -d for find the error (probably human)." .. sError
 				hosts = 0
 			end
 			
 			math.randomseed ( nmap.clock_ms() ) -- We update the Seed again.
-			hosts = Vmware_Range_005056 (IPv6Prefix,NumBits ) + hosts
+			aux  = Vmware_Range_005056 (IPv6Prefix,NumBits ) 
 			
 			if hosts == nil then
 				sError =  " The compute of VMware 00:50:56:XX:YY:ZZ had a error for the prefix  "  .. 
-						IPv6Prefix .. " you can use -dddd for find the error (probably human)."
+						IPv6Prefix .. " you can use -d for find the error (probably human)."  .. sError
+			else
+				host = aux + hosts
 			end
+			
+			
 		elseif (OUI == "VMware-Static" ) then --VMware Static MAC address assignation. 
 			hosts = Vmware_Range_005056 (IPv6Prefix,NumBits )
 			if hosts == nil then
@@ -973,7 +1016,6 @@ hostrule = function(host)
 		
 		bMatch, sMatch = ipOps.compare_ip(host.ip, "eq", Objetivo)
 		if bMatch == nil then
-			--print (sMatch)
 			stdnse.print_verbose(1, "\t hostrule  had a error with " ..   
 								host.ip .. "\n Error:" .. sMatch )
 		elseif bMatch then
@@ -995,7 +1037,7 @@ action = function ( host )
 	local  bHostsPre, sHostsPre 
 	local Nodes = {} -- Is a Auxiliar 
 	itsismx.Registro_Global_Inicializar("sbkmac") -- Prepare everything!
-	
+	local SaveMemory = stdnse.get_script_args( "itsismx-SaveMemory" )
 	
 	-- The aciton is divided in two parts: Pre-scanning and host scanning.
 	-- The first choice the tentative hosts to scan and the second only 
@@ -1011,6 +1053,12 @@ action = function ( host )
 
 			stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 								" Finished. Were added : " .. tSalida.Nodos  .. " to the scan phase." )
+								
+			if SaveMemory then 
+				stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+								" Warning: Was given the option to save memory, therefore the final report will " ..
+								"be incorrect" )
+			end
 			
 		end
 	
