@@ -28,7 +28,7 @@ description = [[
 -- @output
 
 
--- @args itsismx-dhcpv6.subnet 		It's table/single  IPv6 subnetworks to test if exist .
+-- @args itsismx-dhcpv6.subnets 		It's table/single  IPv6 subnetworks to test if exist .
 --	   				We can have two types of entries: Single subnet ( X:X:X:X::/YY ), or 
 --          				range of subnets to calculate (X:X:X:X::/YY , Bits, Total ) where  
 --	   				 B are the bits used for subnetting and Total amount of subnets to search.
@@ -1072,7 +1072,7 @@ action = function()
 	   
 	   bExito = bExito or bRecorrido
 	   if bRecorrido then
-			table.insert(tSalida.Nodos,Subnet)
+			table.insert(tSalida.Subnets,Subnet)
 	   end
 	   
 	   --Before we pass to the next sub/net candidate we must wait a little time
@@ -1085,12 +1085,12 @@ action = function()
 	
 	-- There is at least one node on the list ?
 	if (bExito) then 
-		nmap.registry.itsismx.PrefixesKnown = tSalida.Nodos
-		stdnse.print_verbose(1, SCRIPT_NAME  .. " Were added  " .. #tSalida.Nodos  ..  
+		nmap.registry.itsismx.PrefixesKnown = tSalida.Subnets
+		stdnse.print_verbose(1, SCRIPT_NAME  .. " Were added  " .. #tSalida.Subnets  ..  
 							" subnets to scan!"   )
 	else
 		itsismx.Registro_Global_Inicializar("PrefixesKnown") -- We prepare our work!
-		nmap.registry.itsismx.PrefixesKnown = tSalida.Nodos
+		nmap.registry.itsismx.PrefixesKnown = tSalida.Subnets
 		stdnse.print_verbose(1, SCRIPT_NAME  .. " Not sub-net were added to the scan list!"   )
 	end
 	

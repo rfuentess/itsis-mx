@@ -233,7 +233,7 @@ local PreScanning = function()
 	-- 3?: A partir de la interfaz de red del usuario  (Aunque solo sirve local)
 	
 	
-	PrefijosUniversales = stdnse.get_script_args('nmap.registry.itsismx.PrefixesKnown ')
+	PrefijosUniversales = nmap.registry.itsismx.PrefixesKnown
 	PrefijosUsuario, NumBits = stdnse.get_script_args('itsismx-subnet', 'itsismx-LowByt.nbits')
 	
 	if PrefijosUniversales == nil and PrefijosUsuario == nil then  --Esto si es muy malo

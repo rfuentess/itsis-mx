@@ -331,6 +331,7 @@ local Vmware_Range_000C29 = function ( IPv6Base, nBits, Metodo )
 	local Segmentos,sError, Candidato,IPv6Prefix,IPv6Candidato
 	local bool ,err
 	local SaveMemory = stdnse.get_script_args( "itsismx-SaveMemory" )
+	
 	--  ccccccugcccccccc:cccccccc
 	--  0000000000001100:00101001
 	-- ___________________________
@@ -557,7 +558,7 @@ local Vmware_Range_005056 = function ( IPv6Base, nBits, Metodo )
 						" VMware(static): Error: " .. sError )
 		return nil, sError
 	end
-	
+	 
 	IPv6Base = itsismx.DecToHex(IPv6Segmentos[1]) .. ":" .. itsismx.DecToHex(IPv6Segmentos[2]) .. ":" .. 
 			   itsismx.DecToHex(IPv6Segmentos[3]) .. ":" .. itsismx.DecToHex(IPv6Segmentos[4]) .. ":" .. 
 			    "0250:56ff:fe"
@@ -608,6 +609,8 @@ local getSlaacCandidates = function ( IPv6Prefix , HighPart )
 	local Metodo, NumBits = stdnse.get_script_args("itsismx-slaac.compute", "itsismx-slaac.nbits")
 	local IPv6Base, IPv6Segmentos
 	local FinalHost = 0
+	
+	
 	-- RFC 4291  The last 64 bits to create will have this format:
 	
 	  -- |0              1|1              3|3              4|4              6|
@@ -620,13 +623,13 @@ local getSlaacCandidates = function ( IPv6Prefix , HighPart )
 	-- and "u" & "g" are bits to overlap the one from Highpart ( for this script 
 	--  will be  10) 
 	
-	-- There should be special Candidates, thoses will be the one from 
+	-- There should be special Candidates, those will be the one from 
 	-- known virtual machines. On those cases "HIGHParth"  would be longer than 24 bits
 	-- (Actually the general values  come as a string XXXXXX  so, 
 	-- any longer 6 character will be "Special" BUT the user could make the mistake of use 
 	-- introduce 6 hex digits from a special case. 
 	
-	-- Though with 22 bits we are covering only 12.5% of possibe address, we are talkign about
+	-- Though with 22 bits we are covering only 12.5% of possibles address, we are talking about
 	-- a lookup table of 4 million when we are using random mechanism ( yep, there is a special 
 	-- table for control duplicates). 
 	if NumBits == nil then  
