@@ -665,7 +665,7 @@ local Verify_Relay_Reply = function ( PeerAddress,  Relay_Reply , Subnet )
       local hex_pos, hex_dhcp_data, Campos
       local Candidata, bBool, sBool
       
-      hex_pos , hex_dhcp_data = bin.unpack("H".. tostring(Longitud), RELAY ,49+38 )
+      hex_pos , hex_dhcp_data = bin.unpack("H".. tostring(Longitud), Relay_Reply ,49+38 )
    
       -- Should be a valid one but we are going to be sure. 
       if ( hex_dhcp_data:sub(1,2) ~= "02") then

@@ -67,8 +67,7 @@ description=[[
 --									(maybe from the sub-networks scheme)  he can add them as binary value
 --									with this argument.
 -- @args itsismx-SaveMemory			This will avoid to create registries for the final report.  This is very 
---									useful if the machine is having problem with the memory about all with 
---									bigger search.
+--									useful if the machine is having problem with the memory due a big search.
 
 -- @args itsismx-subnet 			IT's table/single  IPv6 address with prefix
 --	   (Ex. 2001:db8:c0ca::/48 or { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 } )
@@ -1059,8 +1058,10 @@ action = function ( host )
 								
 			if SaveMemory then 
 				stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-								" Warning: Was given the option to save memory, therefore the final report will " ..
-								"be incorrect" )
+								": Warning: Was given the option to save memory, therefore the final report will " ..
+			else
+			stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+								": Was unable to add nodes to the scan list due this error: " ..  tSalida.Error )					"be incorrect" )
 			end
 			
 		end
