@@ -3,7 +3,7 @@
 --local packet = require "packet"
 local stdnse = require "stdnse"
 local itsismx = require "itsismx"
---local ipOps = require "ipOps"
+local ipOps = require "ipOps"
 
 description = [[
   A general overview of the previews 6 scripts will be displayed.  Only work on the last phase of Nmap and 
@@ -12,7 +12,7 @@ description = [[
 
 ---
 -- @usage
--- nmap -6 --script  itsismx-report -d
+-- nmap -6 --script  itsismx-report -v
 --
 -- @output
 -- Post-scan script results:
@@ -26,8 +26,9 @@ description = [[
 --	|_     Words            : Discovered 1 nodes online which is 5.8823529411765 Of total nodes discovered.
 --
 
--- Version 0.1
--- 	Created 28/09/2013	- v0.1 - created by Ing. Raul Fuentes <ra.fuentess.sam@gmail.com>
+-- Version 1.1
+--	Updated 01/11/2013	- V1.1 - Majors updates for a best report.
+-- 	Created 28/09/2013	- v0.1 - created by Ing. Raul Fuentes <ra.fuentess.sam+nmap@gmail.com>
 --
 
 author = "Raul Fuentes"
@@ -37,26 +38,25 @@ categories = {"broadcast", "safe"}
 ---
 -- Will check the entries of the list Original for a duplicated Nodo if happens will 
 -- updated his entry if not will be  added at the end of the list.
--- @args	Table	The original Table
--- @args	String	The node to look.
--- @args 	String	The tactic used (SLAAC, Map6to4, Lowbytem wordis 
--- @return  Table	The table udpated
--- @return	Boolean	true if repeated otherwise false
+-- @args	Table		The original Table
+-- @args	String		The node to look.
+-- @args 	String		The tactic used (SLAAC, Map6to4, Lowbytem wordis 
+-- @return  	Table		The table udpated
+-- @return	Boolean		true if repeated otherwise false
 Agregar_Nodo_Descubierto = function( Original,  Nodo, Tactic) 
 	
 	local Host ={IPv6="", Fuentes={}}
-	--local Aux  ={IPv6="", Fuentes={}}
 	local iIndex = 1
 	
-	for Host in Original do 
+	for iIndex , Host in ipairs(Original) do 
+		
 		if ipOps.compare_ip(Nodo, "eq", Host.IPv6) then
 			table.insert ( Original[iIndex].Fuentes, Tactic )
 			return Original, true 
 		end
-		iIndex = iIndex +1 
 	end
 	
-	table.insert{Original, {IPv6=Noso, Fuentes={Tactic}} }
+	table.insert(Original, {IPv6=Nodo, Fuentes={Tactic}} )
 
 	return Original, false
 end
@@ -82,9 +82,6 @@ end
 
 
 action = function()
-
-	--DEBUG
-	nmap.registry.itsismx = {}
 	
 	local lSlaac = nmap.registry.itsismx.sbkmac
 	local lMap64 = nmap.registry.itsismx.Map4t6
@@ -112,7 +109,7 @@ action = function()
 	-- The hosts
 	if lSlaac ~= nil then
 		Total = Total + #lSlaac
-		for Address in lSlaac do
+		for _ , Address in ipairs(lSlaac) do
 		Hosts, bAux =	Agregar_Nodo_Descubierto( Hosts , Address,  "SLAAC") 
 		bBoolean = bBoolean or bAux 
 		end
@@ -123,7 +120,7 @@ action = function()
 	
 	if lMap64 ~= nil then
 		Total = Total + #lMap64
-		for Address in lMap64 do
+		for _ , Address in ipairs(lMap64) do
 		Hosts, bAux =	Agregar_Nodo_Descubierto( Hosts , Address,  "Mapt6to4") 
 		bBoolean = bBoolean or bAux 
 		end
@@ -132,7 +129,7 @@ action = function()
 	end
 	if lLwByt ~= nil then
 		Total = Total + #lLwByt
-		for Address in lLwByt do
+		for _ , Address in ipairs(lLwByt) do
 		Hosts, bAux =	Agregar_Nodo_Descubierto( Hosts , Address,  "Low-Bytes") 
 		bBoolean = bBoolean or bAux 
 		end
@@ -142,7 +139,7 @@ action = function()
 	
 	if lWords ~= nil then
 		Total = Total + #lWords
-		for Address in lWords do
+		for _ , Address in ipairs(lWords) do
 		Hosts, bAux =	Agregar_Nodo_Descubierto( Hosts , Address,  "Words") 
 		bBoolean = bBoolean or bAux 
 		end
@@ -155,11 +152,13 @@ action = function()
 	tOutput.Hosts={}
 	tOutput.Repeats={}
 	
+	--tOutput.Hosts  = { ["Technique"]="",["List"]={}}
+	local Auxiliar = { ["Technique"]="",["List"]={}}
 	if SubRedes == 0  then
 		table.insert(tOutput.Subnets, "No Subnets were discovered using this series of script. ")
 	else
 		if #lDhcp6 ~= 0 then 
-			table.insert( tOutput.Hosts, #lDhcp6  .. " Were confirmed to exits using  the  spoofing technique with DHCPv6"    )
+			table.insert( tOutput.Subnets, #lDhcp6  .. " Were confirmed to exits using  the  spoofing technique with DHCPv6"    )
 		end
 		
 	end
@@ -167,27 +166,58 @@ action = function()
 	if Total == 0 then
 		table.insert(tOutput.Hosts, "No Hosts were discovered using this series of script. ")
 	else 
+		
 		if #lSlaac ~= 0 then 
-			table.insert( tOutput.Hosts, " SLAAC		: Discovered " ..  #lSlaac .. " nodes online which are "  .. #lSlaac/Total * 100 .. "% Of total nodes discovered."   )
+			Auxiliar = { ["Technique"]="",["List"]={}}
+			Auxiliar.Technique =  "SLAAC - Discovered " ..  #lSlaac .. " nodes online which are "  .. #lSlaac/Total * 100 .. "% Of total nodes discovered." 
+			 if nmap.verbosity >= 1 then
+			    for _ , Address in ipairs(lSlaac) do table.insert(Auxiliar.List, Address)  end
+			 end
+			 table.insert(tOutput.Hosts, Auxiliar) 
 		end
+		
+		
 		if #lMap64 ~= 0 then 
-			table.insert( tOutput.Hosts, " MAP 6 to 4	: Discovered " ..  #lMap64 .. " nodes online which is "  .. #lMap64/Total * 100 .. " Of total nodes discovered."   )
+			Auxiliar = { ["Technique"]="",["List"]={}}
+			Auxiliar.Technique = " Map6to4 - Discovered " ..  #lMap64 .. " nodes online which is "  .. #lMap64/Total * 100 .. " Of total nodes discovered."   
+			if nmap.verbosity() >= 1 then
+			    for _ , Address in ipairs(lMap64) do table.insert(Auxiliar.List, Address)  end
+			 end
+			 table.insert(tOutput.Hosts, Auxiliar) 
 		end
+		
+		
 		if #lLwByt ~= 0 then 
-			table.insert( tOutput.Hosts, " Low Bytes	: Discovered " ..  #lLwByt .. " nodes online which is "  .. #lLwByt/Total * 100 .. " Of total nodes discovered."   )
+			Auxiliar = { ["Technique"]="",["List"]={}}
+			Auxiliar.Technique = " Low Bytes - Discovered " ..  #lLwByt .. " nodes online which is "  .. #lLwByt/Total * 100 .. " Of total nodes discovered."
+			if nmap.verbosity() >= 1 then
+			    for _ , Address in ipairs(lLwByt) do table.insert(Auxiliar.List, Address)  end
+			 end
+			 table.insert(tOutput.Hosts, Auxiliar) 
 		end
+		
+		
+		
 		if #lWords ~= 0 then 
-			table.insert( tOutput.Hosts, " Words 		: Discovered " ..  #lWords .. " nodes online which is "  .. #lWords/Total * 100 .. " Of total nodes discovered."   )
+			Auxiliar = { ["Technique"]="",["List"]={}}
+			Auxiliar.Technique = " Words - Discovered " ..  #lWords .. " nodes online which is "  .. #lWords/Total * 100 .. " Of total nodes discovered."   
+			
+			if nmap.verbosity() >= 1 then
+			    for _ , Address in ipairs(lWords) do table.insert(Auxiliar.List, Address)  end
+			 end
+			 table.insert(tOutput.Hosts, Auxiliar) 
+		
 		end
 	end
 	
 	if {bBoolean} then 
 		
-		for Aux in Hosts do 
+		
+		for _,  Aux in ipairs(Hosts) do 
 			Repetidos = ""
 			if #Aux.Fuentes > 1 then
 				for Tactica in Aux.Fuentes do Repetidos = Repetidos .. " " .. Tactica end
-				table.insert( tOutput.Repeats, "The node " ..  Aux.IPv6 .. " was found by the differentes mechanis: " .. Repetidos)
+				table.insert( tOutput.Repeats, "The node " ..  Aux.IPv6 .. " was found by the differents mechanis: " .. Repetidos)
 			end
 		end
 	end

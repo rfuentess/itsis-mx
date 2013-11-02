@@ -51,8 +51,11 @@ description=[[
 --						"pVpD"		:  Equivalent to "P" ("P" override the others two)
 --  
 -- @args itsismx-slaac.nbits		(Optional)  Number of 1-24. This indicate how many bits to calculate or 
---									what is the same: How much host to calculate (2^nbits).  By default the 
---									is 11 (Except VMware case which is lower because his range is 1-16).
+--									what is the same: How much host to calculate (2^nbits).  By default  
+--									is 11 
+-- @args itsismx-slaac.vms-nbits	(Optional)  Number of 1-16. This indicate how many bits to calculate or 
+--									what is the same: How much host to calculate (2^nbits).  By default  
+--									is 2 
 -- @args itsismx-slaac.compute		(Optional) String  Will be the way to compute the last 24 bits.
 --										(Default) random	- Will calculate random address. Don't use if 
 --										  					  you plan to sweep more than 20 bits (even less) 
@@ -80,16 +83,19 @@ description=[[
 
 
 
--- Version 2.1
---	Updated 11/10/2013	- v2.1 	- A strong change for a more friendly way to use the memory.
+-- Version 2.5
+--	Updated	01/11/2013	- v2.5	- Fixed bugs and errors, the VM had a new argument.
+--	Updated 11/10/2013	- v2.1 	- A strong change for a more friendly use of memory.
 --	Updated 25/04/2013	- v1.3	- First version at full power! (and minor corrections)
 --	Updated 24/04/2013	- v1.0 
--- 	Created 10/04/2013	- v0.1 - created by Ing. Raul Fuentes <ra.fuentess.sam@gmail.com>
+-- 	Created 10/04/2013	- v0.1 - created by Ing. Raul Fuentes <ra.fuentess.sam+nmap@gmail.com>
 --
 
 author = "Raul Fuentes"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
+
+dependencies = {"itsismx-dhcpv6"}
 
 ---
 -- This function get the first 88 bits of a SLAAC IPv6 address and will calculate the  
@@ -276,8 +282,8 @@ local Vmware_Range_000C29WellKnown = function( IPv6Base, sHexadecimal , IPv4Cand
 			return nil
 		end
 		
-		stdnse.print_verbose(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-						" VMware(dynamic):  Will be add 255 targets to the scan list: " .. IPv6Prefix .. "/120")
+		stdnse.print_verbose(4, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+						" VMware(dynamic):  Will be add 256 targets to the scan list: " .. IPv6Prefix .. "/120")
 						
 		repeat  
 	
@@ -369,12 +375,14 @@ local Vmware_Range_000C29 = function ( IPv6Base, nBits, Metodo )
 	-- The user can be more brave and give more bits.
 	-- Tip:Because this is special, we check again the global registry otherwise 
 	-- nBits will read with 11 instead of nil.
-	if stdnse.get_script_args("itsismx-slaac.nbits") == nil then
-		nBits = 4 
+	if stdnse.get_script_args("itsismx-slaac.vms-nbits") == nil then
+		nBits = 2
 	elseif tonumber(nBits) > 16 then -- As this is a special case, this can happens.
 		stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 				" VMware (Dynamic): The args nbits was trunked to 16 for compute this part. "  )
 		nBits = 16
+	else 
+		nBits = stdnse.get_script_args("itsismx-slaac.vms-nbits")
 	end
 	
 	--nBits = 4  --DEBUG!!!
@@ -493,8 +501,8 @@ local Vmware_Range_000C29 = function ( IPv6Base, nBits, Metodo )
 				return nil
 			end
 			
-			stdnse.print_verbose(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-							" VMware(dynamic):  Will be add 255 targets to the scan list: " .. IPv6Candidato .. "/120")
+			stdnse.print_verbose(4, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+							" VMware(dynamic):  Will be add 256 targets to the scan list: " .. IPv6Candidato .. "/120")
 							
 			repeat  
 		
@@ -634,9 +642,9 @@ local getSlaacCandidates = function ( IPv6Prefix , HighPart )
 	if NumBits == nil then  
 		 -- Actually this is a little redundant but better a strict control than nothing
 		 NumBits = 11  
-	elseif tonumber(NumBits) < 2 then 
-		NumBits = 2
-		sError = "Was add a very small value to nbits. Was fixed to 2"
+	elseif tonumber(NumBits) < 1 then 
+		NumBits = 1
+		sError = "Was add a very small value to nbits. Was fixed to 1"
 	elseif tonumber(NumBits) > 24 then 
 		NumBits = 24
 		Metodo = "brute"
@@ -648,6 +656,7 @@ local getSlaacCandidates = function ( IPv6Prefix , HighPart )
 	-- We begin with the OUI candidates, and for each group we'll try to add them 
 	-- to our IPv6 subnets	
 	for _ , OUI in ipairs(HighPart) do 
+		
 		math.randomseed ( nmap.clock_ms() ) -- We are going to use  Random  values, so Seed!
 		if #OUI == 6 then -- Our clasic case! (And some Virtual  mahcines cases too)
 			
@@ -839,8 +848,10 @@ local Prescanning = function ()
 	-- So, we are going to validate that. 
 	if (MacUsers == nil ) then
 		-- IF the user has the argument for virtual machines we don't add anything
-		if  VM == nil then		 
-			PrefixHigh = getMacPrefix( "DELL",MacList  )
+		if  VM == nil then	
+			-- Just "DELL" is a very WRONG IDEA. Need be soemthing more finite.
+			--002170 are used on DELL Optiplex 750 and 780 series. 
+			PrefixHigh = getMacPrefix( "002170",MacList  )
 		end
 	else
 		PrefixHigh = getMacPrefix( MacUsers,MacList  )
@@ -1059,12 +1070,21 @@ action = function ( host )
 			if SaveMemory then 
 				stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 								": Warning: Was given the option to save memory, therefore the final report will " ..
+								" be not correct")
 			else
 			stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-								": Was unable to add nodes to the scan list due this error: " ..  tSalida.Error )					"be incorrect" )
+								": Was unable to add nodes to the scan list due this error: " ..  tSalida.Error )					
+								  
 			end
 			
-		end
+			if tSalida.Error ~= "" then
+			    stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+						".Warnings:  " ..  tSalida.Error )	
+			end
+			
+		end 
+		
+		
 	
 	elseif ( SCRIPT_TYPE== "hostrule" )  then
 		 bExito , tSalida = Hostscanning(host)

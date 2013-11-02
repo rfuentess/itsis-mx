@@ -68,6 +68,8 @@ author = "Raul Armando Fuentes Samaniego"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
+dependencies = {"itsismx-dhcpv6"}
+
 --- 
 -- This function will add all the list of IPv4 host to IPv6 
 -- The most normal is returning X:X:X:X::Y.Y.Y.Y/96
@@ -113,7 +115,8 @@ local From_4_to_6  = function (IPv6_Network, IPv6_Prefix, IPv4SHosts )
 	end
 	
 	stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-				".Map4to6: " .. " Total IPv4 objects to analyze: " ..   #tTabla  )
+				".Map4to6: " .. " Total IPv4 objects to analyze: " ..   #tTabla .. 
+				" for IPv6 subnet: " ..IPv6_Network .. "/" .. IPv6_Prefix   )
 	
 	for _ ,  Host in ipairs(tTabla) do 
 			
@@ -215,7 +218,7 @@ local Prescanning = function ()
 				"	Number of Subnets Known from other sources: " .. #IPv6Knowns    )
 				
 		for _ , IPv6_Subnet in ipairs(IPv6Knowns) do --We need to extract the data
-			IPv6_Add, IPv6_Prefix  = Extract_IPv6_Add_Prefix(IPv6_Subnet) --  We break the data 
+			IPv6_Add, IPv6_Prefix  = itsismx.Extract_IPv6_Add_Prefix(IPv6_Subnet) --  We break the data 
 			
 			IPv6Host, sError = From_4_to_6(IPv6_Add, IPv6_Prefix,IPv4Subnets )
 			if ( sError ~= nil) then
@@ -371,6 +374,14 @@ action = function(host)
 			stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 								": Succesful Mapped IPv4 to IPv6 added to the scan:" ..  tSalida.Nodos )
 			-- We don't add those nodes to the standard exit BECAUSE ARE TEMPTATIVE ADDRESS
+			
+			if tSalida.Error ~= "" then
+			    stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+								".Warnings:  " ..  tSalida.Error )
+			end
+		
+		
+			
 		else
 			stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 								": Was unable to add nodes to the scan list due this error: " ..  tSalida.Error )
@@ -386,11 +397,18 @@ action = function(host)
 		 bExito , tSalida = Hostscanning(host)
 		 tOutput.warning = tSalida.Error
 		 
+		 
+		 
+		 
 
 		 if ( bExito ~= true) then
 			stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 								" Error: " .. tSalida.Error)
 		 end
+		 
+		 
+		 
+		 
 		 
 		 
 		 tOutput.name = "Host online - Mapped IPv4 to IPv6"

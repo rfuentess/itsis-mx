@@ -57,14 +57,14 @@ description=[[
 --
 -- Version 1.0
 -- 	Update 27/03/2013	- v 1.0 
--- 	Created 26/02/2013	- v0.1 - created by Ing. Raul Fuentes <ra.fuentess.sam@gmail.com>
+-- 	Created 26/02/2013	- v0.1 - created by Ing. Raul Fuentes <ra.fuentess.sam+itsismx@gmail.com>
 --
 
 author = "Raul Fuentes"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
-
+dependencies = {"itsismx-dhcpv6"}
 
 ---
 -- This function will create all the host which can be formed from the range give 
@@ -319,6 +319,8 @@ local HostScanning = function( host)
 	if aux == nil then 
 		
 		tSalida.Error = "The global register Itsismx wasn't initialzed correctly (There is a global function for that)"
+		stdnse.print_verbose(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+			".WARNING: " ..  tSalida.Error  )
 		return false, tSalida
 	end
 
@@ -326,6 +328,7 @@ local HostScanning = function( host)
 	aux[#aux +1] = host.ip
 	nmap.registry.itsismx.LowByt = aux
 	table.insert(tSalida.Nodos,host.ip)
+	
 	
 	return true, tSalida
 end

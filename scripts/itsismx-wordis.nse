@@ -51,6 +51,8 @@ author = "Raul Fuentes"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
+dependencies = {"itsismx-dhcpv6"}
+
 --- 
 -- Get a Prefix and for that one will add all the valids  words  we known.
 -- However two arguments from the user can affect how calculated the hosts.
@@ -274,6 +276,8 @@ local Hostscanning = function( host)
 	--We use the aux for be able to add a new element to the table
 	aux[#aux +1] = host.ip
 	nmap.registry.itsismx.wordis = aux
+	
+	print("Registro:  "  .. #nmap.registry.itsismx.wordis )
 	
 	tSalida.Nodos = host.ip 	-- This rule ALWAY IS ONE ELEMENT!
 	
