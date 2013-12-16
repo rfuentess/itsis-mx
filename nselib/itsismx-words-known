@@ -1,17 +1,25 @@
-# $Id: itsismx-words-known 2013-04-26 rfuentess $ por ahora hecho a manita 
+# $Id: itsismx-words-known 2013-04-26 rfuentess $ 
 # For now the words come from "common" password on dictionary attacks  
 # and from other texts.
-# The way to look this file is 
+# The way to look this file is
+# 
 # Number of segments |  Word |  word in binary
-# This is for give a easy time  choicing which one to pick and give a easy time 
+#
+# This is for give a easy time  choosing which one to pick and give a easy time 
 # assembling the IPv6 address on binary.
-# Some basic dictionariesÑ
+#
+#As the user discover EUI-64 format Address is a good idea to place those on this list. 
+# Some basic dictionaries:
 # http://nedbatchelder.com/text/hexwords.html
 #
 1	c0ca			1100000011001010
 1	10ca			0001000011001010
 1 	dead			1101111010101101
-1	bee				0000101111101110
+1	bee			0000101111101110
 1	beef			1011111011101111
 2	cafebabe		11001010111111101011101010111110
 2	deadbeef		11011110101011011011111011101111
+
+#Those are some  EUI-64 address from a Router Cisco 2811
+4	022290fffeb14780	0000001000100010100100001111111111111110101100010100011110000000
+4	022290fffeb14780	0000001000100010100100001111111111111110101100010100011110000001

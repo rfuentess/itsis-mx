@@ -33,7 +33,7 @@ description = [[
 
 author = "Raul Fuentes"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
-categories = {"broadcast", "safe"}
+categories = {"safe"}
 
 ---
 -- Will check the entries of the list Original for a duplicated Nodo if happens will 
@@ -89,12 +89,6 @@ action = function()
 	local lWords = nmap.registry.itsismx.wordis
 	local lDhcp6 = nmap.registry.itsismx.PrefixesKnown
 
---local lSlaac = {"a", "b" , "c"}
---local lMap64 = {"a", "b" , "c", "", "", "", "", ""}
---local lLwByt = {"a", "b" , "c", "", ""}
---local lWords = {"a"}
---local lDhcp6 = {}
-	
 	local Hosts = { {IPv6="", Fuentes={}}	} -- Fuentes will have the list of 
 	local Aux , bAux, bBoolean= {IPv6="", Fuentes={}}, false, false
 	local Total , SubRedes, Address, Repetidos, Tactica = 0 , 0 ;
@@ -116,7 +110,6 @@ action = function()
 	else 
 		lSlaac = {}
 	end	
-	
 	
 	if lMap64 ~= nil then
 		Total = Total + #lMap64

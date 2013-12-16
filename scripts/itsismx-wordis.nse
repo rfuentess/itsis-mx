@@ -33,7 +33,7 @@ description=[[
 --	| Host online - IPv6 address SLAAC
 --	|_  2001:db8:c0ca::dead
 
--- @args newtargets  				MANDATORY Need for the host-scaning to succes 
+-- @args newtargets  				MANDATORY Need for the host-scaning to success 
 -- @args itsismx-wordis.nsegments	(Optional) Number  - User can indicate exactly 
 --									how big the word must be (Segments of 16 bits) 
 -- @args itsismx-wordis.fillright	(Optional) With this argument the script will fill 
@@ -49,20 +49,20 @@ description=[[
 
 author = "Raul Fuentes"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
-categories = {"broadcast", "safe"}
+categories = {"discovery", "safe"}
 
 dependencies = {"itsismx-dhcpv6"}
 
 --- 
--- Get a Prefix and for that one will add all the valids  words  we known.
+-- Get a Prefix and for that one will add all the valid  words  we known.
 -- However two arguments from the user can affect how calculated the hosts.
--- nsegments fix to pick a number of segments (by default is any segment
--- enough small for be inside of the subnet prefix) and  fillright
--- which allter where we place the remaining zeros (DEfault the left).
+-- n-segments fix to pick a number of segments (by default is any segment
+-- enough small for be inside of the subnet prefix) and  fill-right
+-- which alter where we place the remaining zeros (DEfault the left).
 -- @args Direccion		String	IPv6 address (Subnet)
--- @args Prefijo		Number	Prefix value of Direccion
+-- @args Prefijo		Number	Prefix value of subnet
 -- @args TablaPalabras	Table containing all the elements to search.
--- @return	Boolean		True if was succesufl the operation
+-- @return	Boolean		True if was successful the operation
 -- @return	Table		The table with the valid host for the prefix.
 -- @return	Error		Any error OR problem will be here (Default: "" not nil ) 
 local CrearRangoHosts = function (Direccion, Prefijo, TablaPalabras, User_Segs, User_Right ) 
@@ -277,8 +277,6 @@ local Hostscanning = function( host)
 	aux[#aux +1] = host.ip
 	nmap.registry.itsismx.wordis = aux
 	
-	print("Registro:  "  .. #nmap.registry.itsismx.wordis )
-	
 	tSalida.Nodos = host.ip 	-- This rule ALWAY IS ONE ELEMENT!
 	
 	return true, tSalida
@@ -333,7 +331,7 @@ action = function(host)
 	
 	itsismx.Registro_Global_Inicializar("wordis") -- Prepare everything!
 	
-	-- The aciton is divided in two parts: Pre-scanning and host scanning.
+	-- The action is divided in two parts: Pre-scanning and host scanning.
 	-- The first choice the tentative hosts to scan and the second only 
 	-- confirm which are truly up.
 	if ( SCRIPT_TYPE== "prerule" ) then
@@ -355,8 +353,8 @@ action = function(host)
 		
 			--Final report of the Debug Lvl of Prescanning
 			stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-								" Temptative address based on SLAAC added to the scan:" ..  #tSalida.Nodos .. 
-								"\n Succesful address based on SLAAC added to the scan:" ..  #Nodes )
+								" Temptative address based on words added to the scan:" ..  #tSalida.Nodos .. 
+								"\n Succesful address based on words added to the scan:" ..  #Nodes )
 			
 			-- We don't add those nodes to the standard exit BECAUSE ARE TEMPTATIVE ADDRESS
 			nmap.registry.wordis_PreHost = Nodes 

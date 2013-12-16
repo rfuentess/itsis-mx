@@ -7,9 +7,6 @@ local itsismx = require "itsismx"
 
 description=[[
  Explore the network tryng to find  IPv6 Nodes using low-bytes. 
- Will try to use already known sub-networks of any range and if there
- are not one will check for one on the argumentos. If there are not 
- one  it's going to use  the first valid IPv6 prefix from the Client .
  
  The script run at pre-scanning phase and script phase (The first for 
  create tentative low-bytes address and the second for put the living
@@ -57,12 +54,12 @@ description=[[
 --
 -- Version 1.0
 -- 	Update 27/03/2013	- v 1.0 
--- 	Created 26/02/2013	- v0.1 - created by Ing. Raul Fuentes <ra.fuentess.sam+itsismx@gmail.com>
+-- 	Created 26/02/2013	- v0.1 - created by Ing. Raul Fuentes <ra.fuentess.sam+nmap@gmail.com>
 --
 
-author = "Raul Fuentes"
+author = "Raul Armando Fuentes Samaniego"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
-categories = {"broadcast", "safe"}
+categories = {"discovery","dos"}
 
 dependencies = {"itsismx-dhcpv6"}
 
@@ -124,7 +121,7 @@ local IPv6_GetLowBytesHost = function( IPv6PRefix , NBits)
 	if ( type(IPv6PRefix) ==  "string") then
 			SubRed, Prefijo = itsismx.Extract_IPv6_Add_Prefix(IPv6PRefix)
 		 
-			-- We beegin to do the magic... 
+			-- We begin to do the magic... 
 			if Prefijo + NBits >= 128 then
 				sError = " The give prefix (  " .. Prefijo .. 
 				  " ) it-s too big for use the Bytes provided ( " ..  NBits .. " )"
@@ -165,7 +162,7 @@ local IPv6_GetLowBytesHost = function( IPv6PRefix , NBits)
 			if Prefijo + NBits >= 128 then
 				sError = sError .. "\n\t The  prefix (  " .. Prefijo .. 
 				  " ) it's too big for the Bytes provided ( " ..  NBits .. " )"
-				  -- WE can/t stop there but we skip this Prefix 
+				  -- WE can't stop there but we skip this Prefix 
 				  TodoOk = false
 				  stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. "\t Subnet/Prefix: " ..
 					IPv6Subnet_Prefix .. " had a wrong total prefix: " .. Prefijo + NBits  )
@@ -189,7 +186,7 @@ local IPv6_GetLowBytesHost = function( IPv6PRefix , NBits)
 					" ) found: " .. #Hosts_Subred )				
 				
 				-- This is the best moment for adding those new hosts to a SINGLE TABLE 
-				-- not a table with tables entires, but a table with strings
+				-- not a table with tables entries, but a table with strings
 				for _,v in ipairs(Hosts_Subred) do  table.insert(TablaHost,v) end
 				
 			end
@@ -212,8 +209,9 @@ end
 ---
 -- This is the core of the script. Is here where  we are adding groups of host by 
 -- each prefix ( Only 3 bytes of each subnet)
--- @return Boolean 		TRUE si no se hallo problema alguno durante el proceso.
--- @return Table 		TABLA Listado de prefijos explorados y cantidad de bits en cada uno.
+-- @return Boolean 		TRUE  If there were no problem, otherwise FALSE.
+-- @return Table 		TABLA  The list of exploreds prefixes and the amount of bits
+--							   of each one.
 local PreScanning = function()
 
 	local PrefijosUniversales = {} 	-- Formato esperado: X:X:X:X::/YY
@@ -227,12 +225,6 @@ local PreScanning = function()
 	stdnse.print_verbose(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 			": Begining the Pre-scanning work... "    )
 	
-	-- Existen 2 fuentes de Prefijos previos (No excluyentes):
-	-- 1: Universales descubiertos por todo los scripts de la tesis
-	-- 2: Provistos por el usuario mediante un argumento
-	-- 3?: A partir de la interfaz de red del usuario  (Aunque solo sirve local)
-	
-	
 	PrefijosUniversales = nmap.registry.itsismx.PrefixesKnown
 	PrefijosUsuario, NumBits = stdnse.get_script_args('itsismx-subnet', 'itsismx-LowByt.nbits')
 	
@@ -245,7 +237,6 @@ local PreScanning = function()
 	elseif PrefijosUsuario == nil then
 		PrefijosUsuario = {}
 	end
-	
 	
 	-- By default we work with a Byte
 	if NumBits == nil then  
@@ -261,8 +252,6 @@ local PreScanning = function()
 	stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 			": Numbers of bits we took as \"Low-bytes\": " ..  NumBits   )
 	
-	-- Damos preferencia a los universales y luego a los proveidos por el usuario.
-	-- for _,Ruta in ipairs(PrefijosUniversales) do 
 	if #PrefijosUniversales > 0 then 
 		stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 			": Number of  Subnets Known from other sources: " ..  #PrefijosUniversales   )
@@ -270,6 +259,7 @@ local PreScanning = function()
 		for _,v in ipairs(Universales) do  table.insert(tSalida.Nodos,v) end 
 	end
 	-- end 
+	
 	--We have two options with  PrefijosUsuario String (ONE) or Table (One or more) 
 	if   type(PrefijosUsuario) ==  "string"  and   #PrefijosUsuario > 0  then
 		stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..  
@@ -296,9 +286,9 @@ end
 ---
 -- All the nodes that come to this point were discovered by the pre-scanning function
 -- So we only need to generate a final report 	
--- @return 	Boolean 			TRUE si no se hallo problema alguno durante el proceso.
--- @return 	Table 				(Salida estandar)TABLA Listado de prefijos explorados y 
---								  cantidad de bits en cada uno.
+-- @return Boolean 		TRUE  If there were no problem, otherwise FALSE.
+-- @return Table 		TABLA  The list of exploreds prefixes and the amount of bits
+--							   of each one.
 local HostScanning = function( host)
 	
 	local tSalida = { Nodos={}, Error=""}
@@ -309,7 +299,7 @@ local HostScanning = function( host)
 			": Begining the Host-scanning results... "    )
 
 	-- We are going to be sure don't do stupid thing on wrong register (Because we don't have
-	-- handlres for working with registers)
+	-- handlers for working with registers)
 	if nmap.registry.itsismx == nil then 
 		tSalida.Error = "You must first initialize the global register Itsismx (There is a global function for that)"
 		return false, tSalida
@@ -318,7 +308,7 @@ local HostScanning = function( host)
 	aux = nmap.registry.itsismx.LowByt
 	if aux == nil then 
 		
-		tSalida.Error = "The global register Itsismx wasn't initialzed correctly (There is a global function for that)"
+		tSalida.Error = "The global register Itsismx wasn't initialized correctly (There is a global function for that)"
 		stdnse.print_verbose(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 			".WARNING: " ..  tSalida.Error  )
 		return false, tSalida
@@ -371,7 +361,6 @@ end
 
 
 action = function(host)
-
 	
 	--Vars for created the final report
 	local tOutput = {} 
@@ -382,29 +371,21 @@ action = function(host)
 	
 	itsismx.Registro_Global_Inicializar("LowByt")
 	
-	
-	-- Lo mas sano es irnos por separar las acciones de cada fase.
 	if ( SCRIPT_TYPE== "prerule" ) then
 		bExito, tSalida = PreScanning()
-		
-	elseif ( SCRIPT_TYPE== "hostrule" ) then
-		
-		bExito, tSalida = HostScanning(host)
-
-		
+	elseif ( SCRIPT_TYPE== "hostrule" ) then		
+		bExito, tSalida = HostScanning(host)	
 	else -- uh? (Can't happen but better cover this)
 		tSalida[Error] = "The type of rule  isn't correct. You must review the description of the script."
 		bExito = false;
 	end
 	
 
-	
-	-- Poblamos la tabla de salida 
 	tOutput["warning"] = ""
 	tOutput["name"] = ""
 	if not bExito then 
 		table.insert(tOutput, tSalida.Error)
-	else -- Hay que recordar que esta tabla la comparten dos Fases de Nmap...
+	else 
 		
 		if SCRIPT_TYPE== "prerule"  then	-- We add the to the  host phase scanning.
 			tOutput["name"] = "LowByte: Pre-rule"
@@ -431,15 +412,13 @@ action = function(host)
 				tOutput.warning = SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ": " .. sHostsPre
 			end 
 		
-	
 		elseif SCRIPT_TYPE== "hostrule" then -- Now we display the targets!
 				tOutput["name"] = "Host online - Low-Byte "
 				table.insert( tOutput , tSalida.Nodos  ) 
 			
 				if (#tSalida.Error == 0 ) then
 					tOutput.warning = tSalida.Error
-				end
-				
+				end	
 				
 		end 
 	end

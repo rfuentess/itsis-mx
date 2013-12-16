@@ -11,9 +11,9 @@ local math = require "math"
 description=[[
   
   This script is very simple, will run a brute-force attack for discovering 
-  all the posible hosts  using a stateless SLAAC configuration.  Remember
+  all the posible hosts  using a  SLAAC configurationbased on EUI-64.  Remember
   this mean the first  64 bits are for the subnet then   next 64 bits 
-  are like this <High Mac> FF FE <Low Mac>
+  are: <High Mac> FF FE <Low Mac>
   
   By default will search 4,096 random hosts for one particular MAC vendor 
   but will have arguments for run a full scan of  16,777,216.00  host 
@@ -29,7 +29,7 @@ description=[[
 -- @output
 
 -- 
--- @args newtargets  MANDATORY Need for the host-scaning to succes 
+-- @args newtargets  MANDATORY Need for the host-scaning to success 
 -- @args itsismx-slaac.vendors	 (Optional) String/Table The user can provided companies names (Like Apple, Dell, HP, etc.)
 --					 				which have a valid register for a OUI.  The user can too add a specific OUI (5855CA , 
 --					 				6C9B02, 0CD292, etc.) when has done homework and is very sure can reduce the search.
@@ -65,7 +65,7 @@ description=[[
 --									The user can provided IPv4 which him believe are used for the VMware Host, 
 --									this will save a lot of time and resources for the script.
 -- @args itsismx-slaac.knownbits  	(Optional) String. Binary values used for calculate VMware VM servers.
---									When the user don’t know tentatives IPv4 address of the VMware host but 
+--									When the user don’t know tentative IPv4 address of the VMware host but 
 --									he assume to know some part of the last 16 bits of the IPv6 address 
 --									(maybe from the sub-networks scheme)  he can add them as binary value
 --									with this argument.
@@ -93,14 +93,14 @@ description=[[
 
 author = "Raul Fuentes"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
-categories = {"broadcast", "safe"}
+categories = {"discovery","dos"}
 
 dependencies = {"itsismx-dhcpv6"}
 
 ---
 -- This function get the first 88 bits of a SLAAC IPv6 address and will calculate the  
 -- last 24 bits using brute force (A Sweep of address).   This is the one to use when we 
--- dare to sweep all the 24 bits of candidates (Just remeber, we are talkign about millions)
+-- dare to sweep all the 24 bits of candidates (Just remember, we are talking about millions)
 -- @args 	IPv6Base	String - First 88 bits of the IPv6 address on string IPv6 Format
 -- @args 	nBits		Number - How many bits we are going to calculate ( Range: 3-24) 
 -- @return 	Table		A table with IPv6 Slaac address candidates. Nil if there was a error.
@@ -143,7 +143,6 @@ local Brute_Range = function( IPv6Base, nBits )
 						".Brute-mechanism: Had been a error adding the node " .. TheNext ..  " which is: " .. err )
 		end
 			
-			
 		TheNext = itsismx.GetNext_AddressIPv6(TheNext,Prefix, IPv6ExMechanism)
 				
 	until not ipOps.ip_in_range(TheNext, IPv6Base .. "00:0/" .. Prefix)
@@ -157,7 +156,7 @@ end
 -- This function get the first 88 bits of a SLAAC IPv6 address and will calculate the  
 -- last 24 bits using random values. This is useful when we don't dare to sweep all the 
 -- networking and don't want to look only for the lower mac-address. However we are going 
--- to get differents results because the "random" choice of the nodes.
+-- to get different results because the "random" choice of the nodes.
 -- @args 	IPv6Base	String - First 88 bits of the IPv6 address on string IPv6 Format
 -- @args 	nBits		Number - How many bits we are going to calculate ( Range: 3-24) 
 -- @return 	Number		Total of IPv6 Slaac address candidates. Nil if there was a error.
@@ -178,7 +177,6 @@ local Random_Range = function ( IPv6Base, nBits )
 	else 						-- Something wrong, we must be careful
 		return nil
 	end 
-	
 	
 	local iAux, iIndex, _, iValor, bUnico, hHost
 	local  Hosts, Numeros = {}, {}
@@ -260,7 +258,7 @@ local Vmware_Range_000C29WellKnown = function( IPv6Base, sHexadecimal , IPv4Cand
 		while #sIPv4Ldot4 < 2 do sIPv4Ldot4 = "0" .. sIPv4Ldot4 end
 		sIPv4L 	= sIPv4Ldot3 .. sIPv4Ldot4
 		
-		-- Now we alredy have everything for get the first 120 bits!
+		-- Now we already have everything for get the first 120 bits!
 		Segmentos,sError = ipOps.get_parts_as_number(IPv6Base)
 		if ( sError ~= nil) then
 			stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
@@ -313,14 +311,14 @@ local Vmware_Range_000C29WellKnown = function( IPv6Base, sHexadecimal , IPv4Cand
 		
 	end
 	
-	print("WTF")
+	
 	return  #nmap.registry.slaac_PreHost
 end
 
 
 ---
 -- We search in the range of MAC  00:0C:29:WW:TT:UU but here is very special  WW:TT can be 
--- known beforehand because is based on IPv4 addres (are the last 16 bits) and UU is random.
+-- known beforehand because is based on IPv4 address (are the last 16 bits) and UU is random.
 -- nBits will play  a role different on other functions. Here will indicate the number of samples
 -- to generate  ( 2^nBits ) 
 -- @args	IPv6Base	String IPv6 Address (WELL-FORMED)
@@ -375,17 +373,20 @@ local Vmware_Range_000C29 = function ( IPv6Base, nBits, Metodo )
 	-- The user can be more brave and give more bits.
 	-- Tip:Because this is special, we check again the global registry otherwise 
 	-- nBits will read with 11 instead of nil.
-	if stdnse.get_script_args("itsismx-slaac.vms-nbits") == nil then
+	local nBits = stdnse.get_script_args("itsismx-slaac.vms-nbits")
+	if nBits == nil then
 		nBits = 2
 	elseif tonumber(nBits) > 16 then -- As this is a special case, this can happens.
 		stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 				" VMware (Dynamic): The args nbits was trunked to 16 for compute this part. "  )
 		nBits = 16
-	else 
-		nBits = stdnse.get_script_args("itsismx-slaac.vms-nbits")
+	elseif tonumber(nBits) < 1 then
+		nbits = 1
+		stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
+				" VMware (Dynamic): The args nbits was set to 1 for compute this part. "  )
+--	else
+		
 	end
-	
-	--nBits = 4  --DEBUG!!!
 	
 	if BitsKnown == nil then
 		Wellknown = 0
@@ -442,6 +443,7 @@ local Vmware_Range_000C29 = function ( IPv6Base, nBits, Metodo )
 			if bBool then
 				table.insert(IPv4Candidatos, iAux)
 				iC = iC + 1
+
 			end
 		end			
 	end
@@ -519,12 +521,8 @@ local Vmware_Range_000C29 = function ( IPv6Base, nBits, Metodo )
 								"  VMware(dynamic):: Had been a error adding the node " .. TheNext ..  " which is: " .. err )
 				end
 				
-				
-				
 				TheNext = itsismx.GetNext_AddressIPv6(TheNext,120, IPv6ExMechanism)
-				
-				
-				
+
 				-- bool ,sError = ipOps.ip_in_range(TheNext, IPv6Candidato .. "/120" )
 				
 				-- if ( sError ~= nil) then
@@ -556,7 +554,6 @@ local Vmware_Range_005056 = function ( IPv6Base, nBits, Metodo )
 	 --  0000001001010000:01010110
 	 --  0x250 :  0x56
 	
-	
 	-- Format to:   XXXX:XXXX:XXXX:XXXX:0250:56FF:FEXX:????			
 	IPv6Segmentos,sError = ipOps.get_parts_as_number(IPv6Base)
 	
@@ -570,7 +567,6 @@ local Vmware_Range_005056 = function ( IPv6Base, nBits, Metodo )
 			   itsismx.DecToHex(IPv6Segmentos[3]) .. ":" .. itsismx.DecToHex(IPv6Segmentos[4]) .. ":" .. 
 			    "0250:56ff:fe"
 	
-  
 	-- Now, we are going to search on the next 6 bits, but this mean we need to adjust a little more 
 	-- nBits for be sure don't overflow the 128 bits range of search
 	if tonumber(nBits) > 18 then --24-6
@@ -582,7 +578,6 @@ local Vmware_Range_005056 = function ( IPv6Base, nBits, Metodo )
 	end
 			
 		
-			
 	-- Random or Brute mechanism?
 	if Metodo == nil then
 		hosts = Random_Range(IPv6Base,nBits )
@@ -653,18 +648,19 @@ local getSlaacCandidates = function ( IPv6Prefix , HighPart )
 		Metodo = "brute"
 	end
 	
+
 	-- We begin with the OUI candidates, and for each group we'll try to add them 
 	-- to our IPv6 subnets	
 	for _ , OUI in ipairs(HighPart) do 
 		
 		math.randomseed ( nmap.clock_ms() ) -- We are going to use  Random  values, so Seed!
-		if #OUI == 6 then -- Our clasic case! (And some Virtual  mahcines cases too)
+		if #OUI == 6 then -- Our classic case! (And some Virtual  machines cases too)
 			
 			hexadecimal = tonumber(OUI,16) 
 			hexadecimal =  bit32.replace( hexadecimal , 2,16,2) -- This or AND
 			bitsAlto = itsismx.DecToHex( hexadecimal) -- This ignore the high part...
 			
-			-- The XXXXXX10...XXXb make alway the string to be 5 or 6 hexadecimals
+			-- The XXXXXX10...XXXb make always the string to be 5 or 6 hexadecimals
 			while #bitsAlto < 6 do
 				bitsAlto = "0" .. bitsAlto
 			end
@@ -694,7 +690,7 @@ local getSlaacCandidates = function ( IPv6Prefix , HighPart )
 			else	-- ERROR!
 				return nil, "ERROR: The compute mechanism is incorrect: " .. Metodo
 			end
-			
+
 			--There is a chance the host table will be empty, this a premature error
 			if hosts == nil then
 				sError =  "\n There was a error with the Prefix:  "  .. IPv6Prefix .. 
@@ -706,7 +702,6 @@ local getSlaacCandidates = function ( IPv6Prefix , HighPart )
 			-- Actually VMware has two specific cases: 
 			--	Manually configured MAC address of the VMs: 00:50:56:XX:YY:ZZ
 			-- 	Dynamic  configured MAC address of the VMs: 00:0C:29:WW:TT:UU
-			
 			hosts, sError = Vmware_Range_000C29(IPv6Prefix,NumBits, Metodo  )
 			
 			-- Uh... we need to get ready hosts ofr the next one...
@@ -717,7 +712,7 @@ local getSlaacCandidates = function ( IPv6Prefix , HighPart )
 			end
 			
 			math.randomseed ( nmap.clock_ms() ) -- We update the Seed again.
-			aux  = Vmware_Range_005056 (IPv6Prefix,NumBits ) 
+			aux  = Vmware_Range_005056 (IPv6Prefix,NumBits, Metodo ) 
 			
 			if hosts == nil then
 				sError =  " The compute of VMware 00:50:56:XX:YY:ZZ had a error for the prefix  "  .. 
@@ -728,13 +723,13 @@ local getSlaacCandidates = function ( IPv6Prefix , HighPart )
 			
 			
 		elseif (OUI == "VMware-Static" ) then --VMware Static MAC address assignation. 
-			hosts = Vmware_Range_005056 (IPv6Prefix,NumBits )
+			hosts = Vmware_Range_005056 (IPv6Prefix,NumBits, Metodo )
 			if hosts == nil then
 				sError =  " The compute of VMware 00:50:56:XX:YY:ZZ had a error for the prefix  "  .. 
 						IPv6Prefix .. " you can use -dddd for find the error (probably human)."
 			end
 		elseif (OUI == "VMware-Dynamic" ) then --VMware Dynamic MAC address assignation. 
-			hosts = Vmware_Range_000C29 (IPv6Prefix,NumBits )
+			hosts = Vmware_Range_000C29 (IPv6Prefix,NumBits, Metodo )
 			if hosts == nil then
 				sError =  " The compute of VMware 00:0C:29:WW:TT:UU had a error for the prefix  "  .. 
 						IPv6Prefix .. " you can use -dddd for find the error (probably human)."
@@ -772,9 +767,8 @@ local getMacPrefix = function ( Vendedores, MacList   )
 	end
 	
 	-- This is a good place for look for the special case that are the VM 
-	-- Virtual Box and Parallels are easy, is just add theirs OUI  to the list
+	-- Virtual Box and Parallels are easy, is just add theirs OUI  to the list.
 	-- Vmware is a little more complex .
-	-- However the user could try to detect only 
 	
 	-- Now we search for the vendors in the Table. WE SEARCH ALL THE TABLE   not only the first
 	-- option. Why? Because some vendors can have more than one registry.
@@ -782,14 +776,13 @@ local getMacPrefix = function ( Vendedores, MacList   )
 		sUserMac = sUserMac:lower()
 		
 		--There is two cases, a name or a full OUI, the problem the OUI is only hexadecimal of 
-		-- 6 Characters the other isn't it, so IF there is any companie which has exactly that 
-		-- will cause a False positive (But nah!).
+		-- 6 Characters the other isn't it, so IF there is any company which has exactly that 6
+		-- first letters  will cause a False positive (But nah!).
 		if itsismx.Is_Valid_OUI(sUserMac ) then 
 				table.insert(hLista,sUserMac )
 				stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 					": " .. " Was added the OUI  " ..   sUserMac .. " provided by the user. "   )
-			
-		else  -- Name of a companie
+		else  -- Name of a company
 			for hMac, sID in pairs( MacList ) do
 				sID = sID:lower()
 				
@@ -839,9 +832,7 @@ local Prescanning = function ()
 		tSalida.Error = " The Mac Prefixes file wasn't find!"
 		return bSalida, tSalida
 	end
-	
-	
-	
+
 	-- Now we must retrieve the Prefixes given by the user and retrieve the total numbers
 	-- if the user didn-t give one we are going to use a Default. 
 	-- There is too, the option the user give a OUI for search a specify one   
@@ -885,8 +876,6 @@ local Prescanning = function ()
 				sVM = sVM .. " VMware VMs (Dynamic) ," 
 			end
 			
-
-			
 			if VM:find("P") then  --Parallels  case
 				-- Are two special cases to add, so will work in other part.
 				table.insert(PrefixHigh, "001C42")
@@ -914,7 +903,6 @@ local Prescanning = function ()
 				table.insert(PrefixHigh, "525400")
 				sVM = sVM .. " Linux QUEMU VMs" 
 			end
-		
 		
 		end
 		

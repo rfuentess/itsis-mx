@@ -1,15 +1,14 @@
 ---
 -- This library implements common tools for all the  NSE scripts 
 -- of ITSISMX.
--- The library contains the following classes:
---
 
---@author Raul Fuentes <ra.fuentes.sam@gmail.com>
+--@author Raul Fuentes <ra.fuentes.sam+nmap@gmail.com>
 --@copyright Same as Nmap--See http://nmap.org/book/man-legal.html
-
 --
--- Version 0.2
--- 
+
+-- Version 1.0
+--
+-- Last uptaded: 08/08/2013 	V 1.0
 -- Created 01/03/2013 - v0.1 - created by Raul Fuentes <ra.fuentes.sam@gmail.com>
 local ipOps = require "ipOps"
 local nmap = require "nmap"
@@ -20,29 +19,26 @@ local math = require "math"
 _ENV = stdnse.module("itsismx", stdnse.seeall)
 
 
+--[[ Tools for  brute sweep of IPv6 Address
 
-
---[[ Tools for  brute sweep of IPv6 Addrss
-
-	There are two  differents methods: 
-	1 - Strings  representing bits  
+	There are two  different methods: 
+	1 - Strings  representing bits 
 	2- 4 numbers of 32 bits
 
-	Originally think to use class for those but  have problem 
-	creating independently instances of the class (because LUA it-  not 
-	a oriented object language)  so at the end choice the use the classical 
-	aproach of functions.
+	Originally  were to use classes for those but  had problems creating
+        independently instances of the class (because LUA it's  not 
+	a oriented object language)  so,  the classical 
+        approach of functions was used.
 	
---]]
+–]]
 
 
---- Return a number from a binary value reprsent on string
--- Curiosity: "Mordidas" is a VERY BAD Translation of bits
---	@args		A string of 32 characters that area binary (0 | 1 )
+--- Return a number from a binary value represented on string
+-- Curiosity: "Mordidas" is a VERY BAD Translation to spanish of bits
+--  @args	A string of 32 characters that area binary (0 | 1 )
 --  @returns	Numeric value of those 32 bits
 local Bits32_BinToNumber = function ( Mordidas ) 
 	local iValor,iPos = 0,0
-	--print("Longitud " .. #Mordidas .. " de " .. Mordidas)
 	
 	if string.len(Mordidas) ~= 32 then -- We only work with 32 bits 
 		return iValor
@@ -53,18 +49,16 @@ local Bits32_BinToNumber = function ( Mordidas )
 	--bits making me  choice a more "pure" way to do it
 	Mordidas:reverse() --More easy to my head 
 	for iPos=1, 32 ,  1 do 
-		--print("\t\t\t" .. #Mordidas:sub(iPos,iPos) .. " " ..Mordidas:sub(iPos,iPos))
 		iValor = iValor + tonumber( Mordidas:sub(iPos,iPos) ) * math.pow(2,32 - iPos)
-		--print ( "\t\t" .. Mordidas:sub(iPos,iPos) .. " * 2^" .. 32 - iPos )
 	end
-	--print ("\t BinToNumber: ", iValor)
 	return iValor
 end
  
---- Return binary value (on strings) of a number.
---	@args		Numeric value of 32 bits (Actually more than that)
---  @returns	A string of 32 characters that area binary (0 | 1 ) 
---				The first 32 bits of the args given.
+--- 
+--  Return binary value (on strings) of a number.
+--  @args	Numeric value of 32 bits (Actually more than that)
+--  @returns	A string of 32 characters that are binary (0 | 1 ) 
+--			The first 32 bits of the args given.
 local Bits32_NumberToBin= function ( Decimal )
 		local Mordidas,iPos = "",0
 		
@@ -73,11 +67,11 @@ local Bits32_NumberToBin= function ( Decimal )
 			Mordidas = Mordidas ..  tostring ( bit32.extract (Decimal, iPos, 1 ) )
 		end
 		
-		--print ("\t NumberToBin: ", Mordidas )
 		return Mordidas
 end	
 
---- We sum our number of 128 bits, against another number of 128 bits  using 
+--- 
+--  We sum our number of 128 bits, against another number of 128 bits  using a
 --  special structure.
 --	@args	NumberA	A table having 4 variables
 --	@args	NumberX	A table having 4 variables
@@ -85,9 +79,6 @@ end
 --  			If there is a error or Overflow will return all bits set to one
 local Bits32_suma128 = function ( NumberA, NumberX)
 
-	--print(NumberA.ParteAltaH ..  NumberA.ParteAltaL .. NumberA.ParteBajaH  .. NumberA.ParteBajaL)
-	--print(NumberX.ParteAltaH ..  NumberX.ParteAltaL .. NumberX.ParteBajaH  .. NumberX.ParteBajaL)
-		
 	-- We sum the parts
 	NumberA.ParteAltaH = NumberA.ParteAltaH + NumberX.ParteAltaH
 	NumberA.ParteAltaL = NumberA.ParteAltaL + NumberX.ParteAltaL
@@ -116,20 +107,18 @@ local Bits32_suma128 = function ( NumberA, NumberX)
 		end
 	end
 	
-	--print(NumberA.ParteAltaH ..  NumberA.ParteAltaL .. NumberA.ParteBajaH  .. NumberA.ParteBajaL)
-
 	return NumberA
 end
 
 ---
 -- 1-bit Binary adder with Carry. 
--- Actually it.s pseudo-bit because got strings and 
--- return strings (Onlye 1 and 0) . It's slower 
+-- Actually it's pseudo-bit because got strings and 
+-- return strings (Only 1 and 0) . It's slower 
 -- than using real numbers but it's a good option for 
 -- IPv6.
--- @args			A	A String of 1 bits
--- @args			B	A String of 1 bits
--- @args			Cin	A String of 1 bit - Carry In
+-- @args	A	A String of 1 bits
+-- @args	B	A String of 1 bits
+-- @args	Cin	A String of 1 bit - Carry In
 -- @return String	A string of 1 bits
 -- @return String	A string of 1 bit ( Carry out)
 local Sumador =  function (A, B, Cin )
@@ -144,8 +133,8 @@ local Sumador =  function (A, B, Cin )
 
 ---
 -- 8-bits Binary adder with Carry. 
--- Actually it.s pseudo-bit because got strings and 
--- return strings (Onlye 1 and 0) . It's slower 
+-- Actually it's pseudo-bit because got strings and 
+-- return strings (Only 1 and 0) . It's slower 
 -- than using real numbers but it's a good option for 
 -- IPv6.
 local Sumador8bits = function ( A, B, Cin)
@@ -161,7 +150,7 @@ local Sumador8bits = function ( A, B, Cin)
 		
 	S[8], Caux = Sumador(aA, aB, Cin)
 	Caux = tostring(Caux)
-	--print("A[8]: " .. aA .. " B[8]: " .. aB .. " S[8]: " .. S[8] .. " C: " .. Caux )
+	
 	for I = 7,2,-1 do 
 		aA = A:sub(I,I)
 		aB = B:sub(I,I)
@@ -184,8 +173,8 @@ end
 
 ---
 -- 16-bits Binary adder with Carry. 
--- Actually it.s pseudo-bit because got strings and 
--- return strings (Onlye 1 and 0) . It's slower 
+-- Actually it's pseudo-bit because got strings and 
+-- return strings (Only 1 and 0) . It's slower 
 -- than using real numbers but it's a good option for 
 -- IPv6.
 -- @args	A	A String of 16 bits
@@ -215,10 +204,10 @@ local Sumador16bits = function ( A, B, Cin)
 	return Sstring,  tostring(Cout)
 end
 
--- Sumador binario de 32 bits (String) con acarreo
+---
 -- 32-bits Binary adder with Carry. 
--- Actually it.s pseudo-bit because got strings and 
--- return strings (Onlye 1 and 0) . It's slower 
+-- Actually it's pseudo-bit because got strings and 
+-- return strings (Only 1 and 0) . It's slower 
 -- than using real numbers but it's a good option for 
 -- IPv6.
 -- Useful for IPv4 (Thought Nmap can do it better)
@@ -249,7 +238,8 @@ local Sumador32bits = function ( A, B, Cin)
 	return Sstring,  tostring(Cout)
 end
 
--- Sumador binario de 64 bits (String) con acarreo
+---
+-- 64-bits Binary adder (String) with Carry.
 -- Useful for when using the Node Portion of IPv6
 -- @args	A	A String of 64 bits
 -- @args	B	A String of 64 bits
@@ -281,7 +271,7 @@ end
 ---
 -- 128-bits Binary adder with Carry. 
 -- Actually it.s pseudo-bit because got strings and 
--- return strings (Onlye 1 and 0) . It's slower 
+-- return strings (Only 1 and 0) . It's slower 
 -- than using real numbers but it's a good option for 
 -- IPv6.
 -- Useful for when using the Node Portion of IPv6
@@ -302,32 +292,20 @@ local Sumador128bits = function ( A, B, Cin)
 	aBH = B:sub(1,64)
 	aBL = B:sub(65,128)
 	
-	--print("\t\tAH: " .. aAH .. " BH: " .. aBH)
-	--print("\t\tAL: " .. aAL .. " BL: " .. aBL)
-	 -- print(A)
-	 -- print(B)
-	-- print(aAH)
-	-- print(aAL)
-	-- print(aBH)
-	-- print(aBL)
-	
 	S[2], Caux = Sumador64bits(aAL, aBL, Cin)
 	Caux = tostring(Caux)
-	
-	--print("SL: " .. S[2] .. " C: " .. Caux)
 	
 	S[1], Cout= Sumador64bits( aAH,  aBH,  Caux)
 	
 	Sstring = S[1] .. S[2]
 	
-	
 	return Sstring,  tostring(Cout)
 end
 
 
---- This function will always return the next inmediatly  IPv6
+--- This function will always return the next immediately IPv6
 -- address. This work only with String format.
--- @args	IPv6Address	A String IPv6 address  X:X:X:X:X:X:X:X
+-- @args	IPv6Address	A String IPv6 address X:X:X:X:X:X:X:X
 -- @args	Prefix	Optional Prefix. If it-s provided the function 
 --			 will check to do sum with lesser bits (64, 32, 16 or 8)
 -- @returns	String 128 bits of a IPv6 Address
@@ -339,23 +317,17 @@ local GetNext_AddressIPv6_String = function(IPv6Address, Prefix)
 	UNO = ipOps.ip_to_bin("::1")		
 		
 	if (not  Prefix )  then -- nil?
-		--print("NIL")
 		Next = Sumador128bits( IPv6Address, UNO , "0")
 	elseif ( Prefix > 120) then
-		--print(">= 120")
 		Next = Sumador8bits( IPv6Address:sub(121,128), UNO:sub(121,128) , "0")
 		Next = IPv6Address:sub(1,120) .. Next
 	elseif (  Prefix > 112) then
-		--print(">= 112")
 		Next = Sumador16bits( IPv6Address:sub(113,128), UNO:sub(113,128) , "0")
 		Next = IPv6Address:sub(1,112) .. Next
-	elseif (  Prefix > 96) then
-		--print ( ">96") 
+	elseif (  Prefix > 96) then 
 		Next = Sumador32bits( IPv6Address:sub(97,128), UNO:sub(97,128) , "0")
 		Next = IPv6Address:sub(1,96) .. Next
-		
 	elseif (  Prefix > 64) then
-		--print ( ">64") 
 		Next = Sumador64bits( IPv6Address:sub(65,128), UNO:sub(65,128) , "0")
 		Next = IPv6Address:sub(1,64) .. Next
 	else -- Wasn't need the Prefix but anyway...
@@ -365,7 +337,7 @@ local GetNext_AddressIPv6_String = function(IPv6Address, Prefix)
 	return Next
 end
 
---- This function will always return the next inmediatly  IPv6
+--- This function will always return the next immediately    IPv6
 -- address. This work only with a structure of 4 numbers.
 -- @args	IPv6Address	A String IPv6 address  X:X:X:X:X:X:X:X
 -- @args	Prefix	Optional Prefix. If it-s provided the function 
@@ -395,29 +367,30 @@ end
 
 --[[ Global Functions
 
-	Those are the global function that can be called by any script.
+	Those are  global functions  called by any script.
+
 --]]
 
 
 ---
--- This function will always return the next inmediatly  IPv6
+-- This function will always return the next immediately IPv6
 -- address.  
--- We work with 2 very differents aproachs: Strings or Numbers
--- the first make booleans operation with strings and the second
--- make math with 4 separed numbers.
+-- We work with 2 very different approach: Strings or Numbers
+-- the first make Booleans operation with strings and the second
+-- make math with 4 separated numbers.
 -- Note: By default use the 128 bits for adding but if the 
 -- the prefix its big can be a waste, that is why  there is a option 
 -- for reduce the number of bits to sum (String case only). 
--- @args	IPv6Address	A String IPv6 address  X:X:X:X:X:X:X:X
+-- @args	IPv6Address	A String IPv6 address X:X:X:X:X:X:X:X
 -- @args	(Optional) Prefix. If it-s provided the function 
 --			 will check to do sum with lesser bits (64, 32, 16 or 8)
 --			 but only work if we are using "String"
--- @args 	IPv6_Mech_Operator A string which represent the mechanis 
+-- @args 	IPv6_Mech_Operator A string which represent the mechanism 
 --			 for calculating the next IPv6 Address. Values:
 --				string 	- (Default) use pseudo binary operations 
 --				number	- Divide the IPv6 in 4 numbers of 32 bits 
 --						  (Mathematical operations)
--- @return String Formated full IPv6 X:X:X:X:X:X:X:X)
+-- @return String Formatted full IPv6 X:X:X:X:X:X:X:X)
  GetNext_AddressIPv6 = function(IPv6Address, Prefix, IPv6_Mech_Operator)
 
 	local Next = "::"
@@ -445,7 +418,7 @@ end
 end 
 
 ---
---  This function will always return the next inmediatly  IPv4 address.
+--  This function will always return the next immediately  IPv4 address.
 --   We use only Dword operations for calculating so, there is no more options for this.  
 GetNext_AddressIPv4 = function (IPv4ddress) 
 	
@@ -471,7 +444,7 @@ end
 --  The lesser prefix that return it's 48 because before that 
 -- is IANA Field.
 -- @args	IPv6PRefix	A String IPv6 address with Prefix: X:X:X:X::/YY
--- @return String	Formated full IPv6 ( X:X:X:X:: )
+-- @return String	Formatted full IPv6 ( X:X:X:X:: )
 -- @return Number	Prefix number (0-128)
  function Extract_IPv6_Add_Prefix(IPv6PRefix)
 	local Campos = {}
@@ -491,34 +464,29 @@ end
 
 --- 
 -- This function will initialize the global registry nmap.registry.itsismx
--- As this is global will check if was already called by one previous script 
+-- will check if was already called by one previous script 
 -- if not, will create it. In both cases  a sub entry will be generated too.
   Registro_Global_Inicializar =  function ( Registro )
 
 	local Global = nmap.registry.itsismx
 		
-	if Global  == nil  then --The first script to run initialice all the register
+	if Global  == nil  then --The first script to run initialize the register
 		
 		Global = {}
 		Global[Registro] = {}
 		
 		nmap.registry.itsismx = Global
 		
-	elseif  Global[Registro] == nil then --- WE MUST BE CAREFUL Don't overwritte other registry
+	elseif  Global[Registro] == nil then --- WE MUST BE CAREFUL Don't overwrite other registry
 		nmap.registry.itsismx[Registro]  = {}
 		
 	end -- This Ok, a previous script, or maybe a previous run of our script had already  create
 		-- the registry, we don-t want to destroy the current data.
-	-- local key, elemento 
-	-- for key, elemento in pairs(nmap.registry.itsismx) do
-		-- print(key, elemento)
-	-- end
-		
 end
 
 ---
--- Convert Decimal number to Hexadecimal 
--- This piece of code was taken from:
+-- Convert Decimal number to Hexadecimal. 
+-- Taken from:
 -- http://snipplr.com/view/13086/
 -- @args	Number		A Lua number format
 -- @return	String		String representing Hexadecimal value 
@@ -535,7 +503,7 @@ function DecToHex(Number)
 end
 
 ---
--- Confirm ir a given String is a oui or not. 
+-- Confirm if a given String is a OUI or not. 
 -- the OUI are 6 hexadecimal characters.
 -- @args 	OUI		String representing the potential OUI
 -- @return	Boolean	TRUE if a OUI valid format, otherwise false
@@ -552,16 +520,12 @@ Is_Valid_OUI = function (  OUI )
 	
 	local hexstr = '0123456789abcdef'
 	local Index, Caracter = 1, ""
-	--OUI=OUI:lower()
-	--print("OUI: Original " .. OUI )
-	
+
 	--Now begin the process 
 	for Index = 1, 6 do 
 		Caracter = OUI:sub(Index,Index)
 		if  hexstr:find(Caracter) == nil then
 			return false
-		--else 
-		--	print ( "OUI: " .. Caracter  )
 		end
 	end
 	
@@ -570,7 +534,7 @@ end
 
 ---
 -- Get a binary number represent with strings. Will check than only have 
--- zeros and ones.
+-- zeroes and ones.
 -- @args	Bits	String representing a binary value.
 -- @return	Boolean	TRUE if is a valid binary number, otherwise false. 
 Is_Binary = function ( Bits )
@@ -586,10 +550,10 @@ end
 
 
 --- 
--- This function will do NOTHING but kill time. LUA do not provide something 
+-- This function will do NOTHING but kill time. LUA does not provide something 
 -- similar.  This only is useful IF WE NEED TO WAIT or KILL TIME for avoid 
--- detections and only if we are on pre-scanning or post-scannig due nmap  
--- provide more powerfuls tools for the other two phases
+-- detections and only if we are on pre-scanning or post-scanning due Nmap  
+-- provide more powerful tools for the other two phases
 waitUtime = function ( micrseconds ) 
   
   local start = stdnse.clock_us ()
@@ -598,9 +562,9 @@ waitUtime = function ( micrseconds )
 end
 
 ---
--- For some part of the script, I need to work bits separted before be able to use 
--- the functions of ipOPs library. So, i need be able to convert from hex to binarie.
---  NOTE: THIS NEED WORK
+-- For some part of the script, I need to work bits separated before be able to use 
+-- the functions of ipOPs library. So, We need be able to convert from hex to binary.
+--  NOTE: THIS NEEDS WORK
 -- @args 	Number		String  representing hexadecimal number.
 -- @return 	String		String representing binary number (Nil if there is a error)
 HextToBin = function( Number )
@@ -610,7 +574,7 @@ HextToBin = function( Number )
 	for index = 1, #Number do
 		hex = Number:sub(index,index)
 		
-		--Not the best... I need to change later ...
+		--Not the best... I need to change it later ...
 		if hex == "0" then
 			Bits = Bits .. "0000"
 		elseif hex == "1" then
@@ -648,10 +612,7 @@ HextToBin = function( Number )
 		else 
 			--return nil
 		end
-		
-		--print( hex .. "  "  .. Bits )
 	end
-	--print( " ___ " )
 	return Bits
 end
 
@@ -660,7 +621,7 @@ end
 -- This will get any valid IPv6 address and will expand it WITH all the bytes  
 -- returning a string of bytes
 -- @args 	IPv6_Address	String  representing IPv6 Address
--- @return 	String		String representy the 16 bytes of the IPv6 Address
+-- @return 	String		String representing  16 bytes of  IPv6 Address
 Expand_Bytes_IPv6_Address = function ( IPv6_Address )
 	
 	local Segmentos, HexSeg, linkAdd = {}

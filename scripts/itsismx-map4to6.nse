@@ -7,11 +7,11 @@ local itsismx = require "itsismx"
 local tab = require "tab"
 
 description=[[
-  This script SHOULD run a typical Nmap discovery of hosts  on IPv4   but for each host up will 
+  This script SHOULD run a typical Nmap on IPv4   and for each host up  
   try to map the address to IPv6 (IPv6 subnets provided by user or by other script ).
  
   HOWEVER, There is a problem with nmap 6.25 architecture:  OR only  IPv4   OR only  IPv6 
-  by execution. This mean we can't check first for IPv4 address to be up so, the 
+  by run. This mean we can't check first for IPv4 address to be up so, the 
   user must provided the IPv4 hosts   to check. We have two way to do it: The User provide 
   IPv4 hosts address   or provide IPv4 Subnet Address ( X.X.X.X/YY ).
  
@@ -39,7 +39,7 @@ description=[[
 -- nmap.registry.map6t4_PreHost is a global registry which will 
 -- 	used by the script for the host rule (detect new targets from previous)
 
--- @args itsismx-Map4t6.IPv4Hosts 	(optional) This must have at least one IPv4 Host  for the script
+-- @args itsismx-Map4t6.IPv4Hosts 	 This must have at least one IPv4 Host  for the script
 --	 				be able to work (Ex. 192.168.1.1 or { 192.168.1.1, 192.168.2.2 } ) or 
 --   					Subnet Addres  (Ex. 192.168.1.0/24 or { 192.168.1.0/24, 192.168.2.0/24 } )
 --   					Personally  I consider best idea use previous Nmap execution for get the IPv4 address 
@@ -49,13 +49,9 @@ description=[[
 -- @args itsismx-SaveMemory	(Optional) This will avoid to create registries for the final report.  This is very 
 --				useful if the machine is having problem with the memory due a big search.
 
-
 -- @args itsismx-subnet IT's table/single  IPv6 address with prefix
 --	   (Ex. 2001:db8:c0ca::/48 or { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 } )
 -- @args newtargets  MANDATORY Need for the host-scaning to succes 
-
-
-
 
 --
 -- Version 1.0
@@ -66,14 +62,14 @@ description=[[
 
 author = "Raul Armando Fuentes Samaniego"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
-categories = {"broadcast", "safe"}
+categories = {"discovery","dos"}
 
 dependencies = {"itsismx-dhcpv6"}
 
 --- 
 -- This function will add all the list of IPv4 host to IPv6 
 -- The most normal is returning X:X:X:X::Y.Y.Y.Y/96
--- The conversion is going to be totattly IPv6 sintax (we are going to 
+-- The conversion is going to be totally IPv6 syntax (we are going to 
 -- concatenate strings 
 -- @args	IPv6_Network  	A IPv6 Address  ( X:X:X:X:: )
 -- @args	IPv6_Prefix		A IPv6 Prefix, for this we are waiting 64-96
@@ -277,7 +273,7 @@ local Prescanning = function ()
 end
 
 --- 
--- Very simpe action is this one. We add each one of the hosts in the final register.
+-- Very simple action is this one. We add each one of the hosts in the final register.
 local Hostscanning = function (host) 
 	
 	local tSalida = { Nodos=nil, Error=""}
@@ -305,9 +301,7 @@ local Hostscanning = function (host)
 	
 	-- This rule ALWAY IS ONE ELEMENT!
 	tSalida.Nodos = host.ip
-	
-	
-	
+
 	return true, tSalida
 
 end
@@ -350,8 +344,6 @@ end
 
 
 action = function(host)
-
-
 	--Vars for created the final report
 	local tOutput = stdnse.output_table() 
 	local bExito = false
@@ -370,7 +362,6 @@ action = function(host)
 		
 		if bExito then
 			--Final report of the Debug Lvl of Prescanning
-			
 			stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 								": Succesful Mapped IPv4 to IPv6 added to the scan:" ..  tSalida.Nodos )
 			-- We don't add those nodes to the standard exit BECAUSE ARE TEMPTATIVE ADDRESS
@@ -387,29 +378,17 @@ action = function(host)
 								": Was unable to add nodes to the scan list due this error: " ..  tSalida.Error )
 		
 		end
-		 
-		
-		
 	end
 	
 	if ( SCRIPT_TYPE== "hostrule" ) then
 		 
 		 bExito , tSalida = Hostscanning(host)
 		 tOutput.warning = tSalida.Error
-		 
-		 
-		 
-		 
 
 		 if ( bExito ~= true) then
 			stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
 								" Error: " .. tSalida.Error)
 		 end
-		 
-		 
-		 
-		 
-		 
 		 
 		 tOutput.name = "Host online - Mapped IPv4 to IPv6"
 		 --tSalida.Nodos is one single entry not a table (Hostscanning trick)
