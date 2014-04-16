@@ -29,7 +29,7 @@ description=[[
 -- @output
 
 -- 
--- @args newtargets  MANDATORY Need for the host-scaning to success 
+-- @args newtargets  MANDATORY Need for the host-scanning to success 
 -- @args itsismx-slaac.vendors	 (Optional) String/Table The user can provided companies names (Like Apple, Dell, HP, etc.)
 --					 				which have a valid register for a OUI.  The user can too add a specific OUI (5855CA , 
 --					 				6C9B02, 0CD292, etc.) when has done homework and is very sure can reduce the search.
@@ -47,7 +47,7 @@ description=[[
 --						"V"			:  Will search for  Oracle Virtual Box VMs
 --						"M"			:  Will search for  Microsoft Virtual PC VMs
 --						"L"			:  Will search for  Linux  QEMU
---						"WPVML"		:  Equivalent to the defualt option.
+--						"WPVML"		:  Equivalent to the default option.
 --						"pVpD"		:  Equivalent to "P" ("P" override the others two)
 --  
 -- @args itsismx-slaac.nbits		(Optional)  Number of 1-24. This indicate how many bits to calculate or 
@@ -77,8 +77,8 @@ description=[[
 -- @args itsismx-IPv6ExMechanism 	(Optional) Only if you are using brute computing
 --      Nmap don't do math operations with IPv6  because the big value of those address. 
 --		We use own methods which are: 
---			"number"	- 4 Numbers of 32 bits (Mathematical operations)
---			"string"		- (Default) 128 Characters on string  (Pseudo Boolean operations)
+--			"number"	    -  (Default) 4 Numbers of 32 bits (Mathematical operations)
+--			"string"		-  128 Characters on string  (Pseudo Boolean operations)
 --
 
 

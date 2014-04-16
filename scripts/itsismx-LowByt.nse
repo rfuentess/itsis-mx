@@ -6,7 +6,7 @@ local target = require "target"
 local itsismx = require "itsismx"
 
 description=[[
- Explore the network tryng to find  IPv6 Nodes using low-bytes. 
+ Explore the network trying to find  IPv6 Nodes using low-bytes. 
  
  The script run at pre-scanning phase and script phase (The first for 
  create tentative low-bytes address and the second for put the living
@@ -21,7 +21,7 @@ description=[[
 -- Pre-scan script results:
 -- | itsismx-LowByt:
 -- |_  itsismx-LowByt.prerule:  Were added 256 nodes to the scan
--- Nmap scan report for Muu.int-evry.fr (2001:db8:c0ca:1::a)
+-- Nmap scan report for Device (2001:db8:c0ca:1::a)
 -- Host is up.
 
 -- Host script results:
@@ -39,8 +39,8 @@ description=[[
 --	   								(Ex. 2001:db8:c0ca::/48 or { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 })
 -- @args itsismx-IPv6ExMechanism 	(Optional)Nmap don't do math operations with IPv6  because the 
 --		 							big value of those address. We use own methods which are: 
---										"number"	- 4 Numbers of 32 bits (Mathematical operations)
---										"sring"		- (Default) 128 Characters on string  (Pseudo Boolean
+--										"number"	-  (Default) 4 Numbers of 32 bits (Mathematical operations)
+--										"sring"		-  128 Characters on string  (Pseudo Boolean
 --														operations)
 -- @args itsismx-LowByt.nbits  		Indicate how many Bites to consider
 --     								as low. Valid range: 3-16 (default 8 )

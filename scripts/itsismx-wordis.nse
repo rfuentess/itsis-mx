@@ -21,7 +21,7 @@ description=[[
 
 ---
 -- @usage
--- nmap -6 --script itsismx-slaac --script-args newtargets
+-- nmap -6 --script itsismx-wordis --script-args newtargets
 --
 -- @output
 --	Pre-scan script results:
@@ -30,7 +30,7 @@ description=[[
 
 --	Host script results:
 --	| itsismx-wordis:
---	| Host online - IPv6 address SLAAC
+--	| Host online - IPv6 address wordis
 --	|_  2001:db8:c0ca::dead
 
 -- @args newtargets  				MANDATORY Need for the host-scaning to success 

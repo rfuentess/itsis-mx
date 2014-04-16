@@ -22,10 +22,26 @@ description = [[
 
 ---
 -- @usage
--- nmap -6 --script itsismx-dhcpv6 --script-args 
+-- nmap -6 -v --script itsismx-dhcpv6 --script-args itsismx-dhcpv6.subnets= 2001:db8:c0ca:6006::/64
 --
 -- @output
-
+-- NSE: itsismx-dhcpv6.Solicit:  New SOLICIT Message. ID: 09bec2
+-- NSE: itsismx-dhcpv6.Solicit:  Client ID: 0001000e000100011a07eb1a24B6FDe46629
+-- NSE: itsismx-dhcpv6.Solicit:  IA-NA :  0003000c0000000f0000000000000000
+-- NSE: itsismx-dhcpv6.Solicit:  Time: 000800020000
+-- NSE: itsismx-dhcpv6.Solicit:  (G)Host - Link-Address: FE8000000000000026B6FDFFFEe46629 type of request: temporary
+-- DUID: 000100011a07eb1a24B6FDe46629
+-- IAID: 0000000f
+-- NSE: itsismx-dhcpv6.prerule
+--	 Relay Forward:  msg_type: 0C
+--	 hopcount: 0C
+--	 linkAdd: 20010db8c0ca6006ffffffffffffffff
+--	 peerAdd: FE8000000000000026B6FDFFFEe46629
+--	 Options: 0009002c0109bec20001000e000100011a07eb1a24B6FDe466290003000c0000000f0000000000000000000800020000
+-- NSE: Client ID Option length: 14 bytes
+-- NSE: Server ID Option length: 14 bytes
+-- NSE:  The subnet 2001:db8:c0ca:6006::/64 is Online
+-- NSE: itsismx-dhcpv6 Were added  4 subnets to scan!
 
 -- @args itsismx-dhcpv6.subnets 		It's table/single  IPv6 subnetworks to test if exist .
 --	   				We can have two types of entries: Single subnet ( X:X:X:X::/YY ), or 
@@ -51,8 +67,8 @@ description = [[
 
 
 -- Version 1.0
---  Update 28/09/2013	- V1.0 First functional IA-NA mechanish finished.
---	Update 19/09/2013	- V0.7 Finished tranmsision
+--  Update 28/09/2013	- V1.0 First functional IA-NA mechanishm finished.
+--	Update 19/09/2013	- V0.7 Finished transmission
 --	Update 04/06/2013	- V0.5 Produce the messages to spoof.
 -- 	Created 27/05/2013	- v0.1 - created by Ing. Raul Fuentes <ra.fuentess.sam+nmap@gmail.com>
 --
