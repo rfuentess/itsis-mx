@@ -11,6 +11,18 @@ description = [[
  The script run at pre-scanning phase and script phase (The first for create 
  tentative low-bytes address and the second for put the living nodes on the list 
  of discovered nodes).
+ 
+ The new version search by default on the range  X:X:X:X::WWWW:UUUU/YY.
+ Where WWWW by defualt is treated as decimal number (0000 - 9999) instead of 
+ hexadecimal values.
+ A default search will search  by nodes as: 
+	2001:db8:bee::0:0 - 2001:db8:bee::0:100
+	2001:db8:bee::1:1 - 2001:db8:bee::1:100
+	.
+	.
+	.
+	2001:db8:bee::1000:1 - 2001:db8:bee::1000:100
+	
 ]]
 
 ---
@@ -24,41 +36,27 @@ description = [[
 -- Nmap scan report for Device (2001:db8:c0ca:1::a)
 -- Host is up.
 
--- Host script results:
--- | itsismx-LowByt:
--- |_    2001:db8:c0ca:1::a
 
+-- @args newtargets            MANDATORY Need for the host-scanning to success
 
--- nmap.registry.itsismx.LowBytes.LowByt_PreHost  Is not for the user but for pass
---                                                information from Pre-scanning to
---                                                script to  Host-scanning script.
-
--- nmap.registry.itsismx.LowByt  Global Registry (final objective) will have all
---                               the valid IPv6 address discovered with this Script.
-
--- @args newtargets                 MANDATORY Need for the host-scanning to success
-
--- @args itsismx-subnet           (Optional)  IT's table/single  IPv6 address with
+-- @args itsismx-subnet        (Optional)  IT's table/single  IPv6 address with
 --                                prefix(Ex. 2001:db8:c0ca::/48 or
 --                                { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 })
 
--- @args itsismx-IPv6ExMechanism (Optional) The script can work the address as string
---                                or 4 integers (32 bits) for mathematical operations.
---                                Possible values:
---          "number" (Default) - 4 Numbers of 32 bits (Mathematical operations)
---          "string"           -  128 Characters on string(Pseudo Boolean operations)
+-- @args itsismx-lowbyt.wseg   (Optional) Number of number/bits to use on the WWWW segment
 
--- @args itsismx-LowByt.nbits      Indicate how many Bites to consider as low.
---                                 Valid range: 3-16 (default 8 )
+-- @args itsismx-lowbyt.wdec   (Optional) false (Default) the WWWW segment is treated as
+--                             decimal number instead of hexadecimal.
 
--- @args itsismx-LowByt.OverrideLock  TRUE: Will get ALL the possibles hosts, even if
---                  that mean brute force of 96 bits. FALSE: Will not exceeds from
---                  16 bits. By default it's False (any  value different to Nil will
---                  be take as "TRUE", except FALSE
+-- @args itsismx-subnet.useg   (Optional) Number of number/bits to use on the UUUU segment
+
+-- @args itsismx-subnet.udec   (Optional) false (Default) the WWWW segment is treated as
+--                             HEXAdecimal number instead of decimal.
 
 
 --
--- Version 1.0
+-- Version 2.0
+-- Updated 20/05/2014 - V2.0 Major upgrade on the script (X:X:X:X::WWWW:UUUU/YY)
 -- Updated 06/05/2014 - V1.2 Minor corrections and standardization.
 -- Update 27/03/2013  - v 1.0
 -- Created 26/02/2013 - v0.1  Created by Raul Fuentes <ra.fuentess.sam+nmap@gmail.com>
@@ -75,288 +73,275 @@ dependencies = {
   "itsismx-dhcpv6",
 }
 
+
 ---
--- This function will create all the host which can be formed from the range give.
---
--- Because the things can become BAD with a high number this is going to be truncated
--- (120-128) at least that OverrideLock (User agument) it's set.
--- @param  IPv6PRefix  A String/Table IPv6 address with Prefix: X:X:X::/YY
--- @param  Prefix      Prefix number (0-128)
--- @return  Table      Table with valids host from the IPv6Prefix with low-bytes
-local IPv6_Create_HostsRange = function (IPv6Address, Prefix)
-  local TheLast, TheNext
-  local Hosts = {}
+-- Will get X:X:X:X::WWWW:0 and will generate the last 16 bits.
+-- 
+-- 
+-- @param	SubRed	Table with the 8 segments of the IPv6 Addresses 
+-- @param   nHost	Number of address to add.
+-- @param	Dec		Boolean True: Decimal False: Hexadecimal
+-- @return	Boolean	True if no error happened with the full block.	
+-- @return  Number  Total nodes successfuly added to the host list.
+local Create_LowBytes = function(SubRed, nHost, Dec)
 
+	-- We already have everything,  just need to execute nHost times
+	local iCont, iTotal = 0, 0
+	local Segmento,bExito = "", true
+	local bool, sErr
+	local IPv6Add = "" 
+	repeat 
+		-- Pass iCont to a hexadecimal value (with 4 Characters)
+		-- BUT! SubRed always is going to have the decimal value 
+		-- So, we need to cast the dec to hex and then convert the 
+		-- hex to decimal. ( 10 is not 0x0010 but 0x000A  )
+		if(Dec) then -- 
+			SubRed[8] = tonumber( tostring(iCont), 16)
+		else  
+			SubRed[8] = iCont
+		end
+		
+		-- Now we re-cast the table to a IPv6 address 
+		-- uh... nasty ipOPs which don't have that function!!!
+		IPv6Add = itsismx.DecToHex(SubRed[1]) .. ":" ..
+                  itsismx.DecToHex(SubRed[2]) .. ":" ..
+                  itsismx.DecToHex(SubRed[3]) .. ":" ..
+                  itsismx.DecToHex(SubRed[4]) .. ":" ..
+                  itsismx.DecToHex(SubRed[5]) .. ":" ..
+                  itsismx.DecToHex(SubRed[6]) .. ":" ..
+                  itsismx.DecToHex(SubRed[7]) .. ":" ..
+				  itsismx.DecToHex(SubRed[8]) 
 
-  TheNext, TheLast = ipOps.get_ips_from_range(IPv6Address .. "/" .. Prefix)
+				  stdnse.print_verbose(5,SCRIPT_NAME .. "." .. SCRIPT_TYPE .. "Adding Host" .. 
+		                            IPv6Add)
+								   
+		-- Add the host to scan phase, look for any problem
+		bool, sErr = target.add(IPv6Add)
+		if (bool == false) then 
+			stdnse.print_verbose(5,SCRIPT_NAME .. "." .. SCRIPT_TYPE .. "Error" .. 
+		                           sErr)
 
-  -- This can be affected by itsismx-IPv6ExMechanism
-  local IPv6ExMechanism = stdnse.get_script_args "itsismx-IPv6ExMechanism"
-
-
-  -- Now the hard part...   numbers in NSE (LUA 5.2) are limited to 10^14..
-  -- So... we can0t do the easy life to pass to number and do the maths there...
-  -- There are extras libraries for Lua 5.2 but aren't part of Nmap project (yet)
-  -- we have only strings for do the things
-  repeat
-    table.insert(Hosts, TheNext)
-    -- Testing local Number_Instead_String = false
-    TheNext = itsismx.GetNext_AddressIPv6(TheNext, Prefix, IPv6ExMechanism)
-    stdnse.print_verbose(5, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..
-                         ":  Added IPv6 address " .. TheNext ..
-                         " to the host scanning list...")
-  until not ipOps.ip_in_range(TheNext, IPv6Address .. "/" .. Prefix)
-  return Hosts
+			
+			bExito = false
+		else 
+			iTotal = iTotal + 1
+		end
+		
+		iCont = iCont + 1
+	until iCont >= nHost
+	
+	return bExito, iTotal
 end
 
 ---
--- This function must obtain all the nodes with the Low Bytes. From a IPv6/Prefix
--- @param   IPv6PRefix  A String/Table IPv6 address with Prefix: X:X:X::/YY
--- @param   NBits       How many bits we are to use
--- @return  Boolean     TRUE if the range was Ok. False if PRefix+NBits > 128
--- @return  Table       Table with valid host from the IPv6Prefix with low-bytes
--- @return  String      Error Message
-local IPv6_GetLowBytesHost = function (IPv6PRefix, NBits)
+-- Will generate the last two segments for the Subnetwork.
+-- 
+-- Remember, WE are to scan the range X:X:X:X::WWWW:00UU/YY
+-- where by defualt WWWW it's going to be 0000 to 1000 but seen as decimal values 
+-- (a,b,c,d and F will not be displayed) meanwhile the UUUU will  be seen as  
+-- hexadecimal values.
+-- Defualt values are:  2560,00 address (100 x 256)
+-- @param	Subnet	Table with the 8 segments of the IPv6 Addresses 
+-- @param	iWseg	(Optional) Total of WWWW to use on the segment.
+-- @param	bWseg 	(Optional) We see iWseg as decimal (false) or hexadecimal?
+-- @param	iUseg	(Optional) Total of UUU to use on the segment.
+-- @param	bUseg 	(Optional) We see bUseg as decimal (true) or hexadecimal?
+-- @return  Boolean  TRUE: ALL the tentative nodes were added 
+-- @return  Table    Basic standard output
+local Crear_2Segmentos = function( Subnet, Prefijo, iWseg, bWseg, iUseg, bUseg)
+	
+	local iCont, iRem, iAux = 0, 0, 0
+	local iTotal, bExito = 0, true
+	local sSegmento, bAux
+	-- Default: 100x100 = 10,000 
+	if iWseg == nil then iWseg = 100 end
+	if iUseg == nil then iUseg = 100 end
 
-  local TablaHost = {}
-  local SubRed, Prefijo
-  local bExito = false
-  local sError = ""
-  local LockBrute = stdnse.get_script_args(SCRIPT_NAME .. 'OverrideLock')
+	-- We placed the default values, however we are working with subnet with custom
+	-- prefix. If those prefix are higher than the possible values, then we need to
+	-- adjust. We modify the last 32 bits (half here, the other half later) 
+	if Prefijo > 112  then -- We ignore the 7-segment 
+				
+		-- We pass to work the 8-segment
+		iWseg = 0 
 
-  if LockBrute ~= nil then
-    if s:lower(LockBrute) == "false" then
-      --It-s odd  to happen but better be sure...
-      LockBrute = false
-    else
-      LockBrute = true
-    end
-  end
+		-- And there is no doubt, we need to check how affected is the 8-segment
+		-- But as with the 7-segment, the bits can have hexadecimal value (default)
+		-- or decimal value.
+		iRem = Prefijo - 112
+		if (not(bUseg)) then --hexadecimal representation (0x0000 - 0xFFFFF)
+			
 
-  -- We can get Strings (single Address/PRefix) or Table (One or more Address/PRefix)
-  if type(IPv6PRefix) == "string" then
-    SubRed, Prefijo = itsismx.Extract_IPv6_Add_Prefix(IPv6PRefix)
-
-    -- We begin to do the magic...
-    if Prefijo + NBits >= 128 then
-      sError = " The give prefix (  " .. Prefijo ..
-                " ) it-s too big for use the Bytes provided ( " .. NBits .. " )"
-      return bExito, TablaHost, sError
-    else
-      Prefijo = 128 - NBits
-    end
-
-    -- Low bytes mean a quick Brute force of hosts... Try to avoid other thing...
-    if not LockBrute then
-      if Prefijo < 128 - 16 then
-        Prefijo = 128 - 16
-        sError = "\t The prefix had to be cut to 112 for avoid  over-do"
-      end
-
-    end
-
-    TablaHost = IPv6_Create_HostsRange(SubRed, Prefijo)
-
-    stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. " Subnet/Prefix: " ..
-               IPv6PRefix .. "\t Total low-bytes nodes (Using" .. " the last " .. 
-               128 - Prefijo .. " bits ) found: " .. #TablaHost)
-
-    bExito = true
-  elseif type(IPv6PRefix) == "table" then
-
-    local Hosts_Subred = {}
-    local L, IPv6Subnet_Prefix
-    local TodoOk = true
-
-    for L, IPv6Subnet_Prefix in ipairs(IPv6PRefix) do
-
-      Hosts_Subred = {}
-
-      SubRed, Prefijo = itsismx.Extract_IPv6_Add_Prefix(IPv6Subnet_Prefix)
+			if math.pow(2,16-iRem) < iUseg then  --Each bits count as 2
+				iUseg = math.pow(2, 16-iRem)
 
 
-      if Prefijo + NBits >= 128 then
-        sError = sError .. "\n\t The  prefix (  " .. Prefijo .. 
-                  " ) it's too big for the Bytes provided ( " .. NBits .. " )"
-        -- WE can't stop there but we skip this Prefix
-        TodoOk = false
-        stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
-                    "\tSubnet/Prefix: " .. IPv6Subnet_Prefix ..
-                    " had a wrong total prefix: " .. Prefijo + NBits)
+			end		
+		else  -- decimal representation (0 - 9999)				
+			if (iRem <= 4) and iUseg > 999 then iUseg = 999 
+			elseif iRem <= 8 and iUseg > 99 then iUseg = 99
+			elseif (iRem <= 12) and iUseg > 9 then iUseg = 9
+			else  iUseg = 0 end --No sense at all!	
+		end
 
-      else
+		stdnse.print_verbose(4, SCRIPT_NAME .. 
+			    ".WARNING: The sub-net has a higher prefix than the number" ..
+							" for UUUU segment. Has been limited to " .. iUseg )
+		
 
-        Prefijo = 128 - NBits
-        if not LockBrute then
-          if Prefijo < 128 - 16 then
-            Prefijo = 128 - 16
-            sError = "The prefix had to be cut to 112 for avoid  over-do"
-          end
-        end
+	elseif  (Prefijo > 96) and (Prefijo <= 112) then
+			-- Probably we need to update iWseg to the remaining bits available
+			iRem = Prefijo - 96
 
+			if bWseg  then -- Hexadecimal representation  (0x0000 - 0xFFFFF)
+				if math.pow(2,16-iRem) < iWseg then  --Each bits count as 2
+					iWseg = math.pow(2, 16-iRem)
+ 
+				end
+			else  -- Decimal representation (0 - 9999)				
+				
+				-- This is tricky, we have 16 bits, but we only work on multiple 
+				-- of 4 (round down). So, at least we lost one part 
+				
 
-        Hosts_Subred = IPv6_Create_HostsRange(SubRed, Prefijo)
+				-- Only 4 possible values: 999, 99, 9 or 0
+				if iRem <= 4 and iWseg > 999 then
+					iWseg = 999 -- This is suicide however
+				elseif iRem <= 8 and iWseg > 99 then iWseg = 99
+				elseif iRem <= 12 and iWseg > 9 then iWseg = 9
+				else  -- -- We pass to work the 8-segment
+					iWseg=0
+				end 	
+			end
+			
+		stdnse.print_verbose(4, SCRIPT_NAME ..  
+			".WARNING: The sub-net has a higher prefix with conflict with WWWW" ..
+			"  value provided. Has been limited accord to: " .. iWseg)
+	end -- The 7-segment is untouched so, normal operation
+	
+	
+	-- The booleans don't care as nil is taken as false (though bUseg will always be
+	-- negated for have easy time with our code.
+	
+	repeat   
+	
+		-- We are to calculate the current Segment
+		if bWseg then -- Hexadecimal representation  
+			Subnet[7] = iCont 
+		else -- Decimal representation 
+			Subnet[7] =  tonumber(tostring(iCont),16)
+		end 
+	
+		bAux, iAux = Create_LowBytes(Subnet, iUseg, bUseg)
+		
+		iTotal =  iTotal + iAux
+		bExito = bExito and bAux
+		iCont = iCont + 1
 
-        stdnse.print_verbose(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..
-                  "\t Subnet/Prefix: " .. IPv6Subnet_Prefix .. " Total low-bytes " ..
-                  "nodes (Prefix " .. Prefijo .. " ) found: " .. #Hosts_Subred)
-
-        -- This is the best moment for adding those new hosts to a SINGLE TABLE
-        -- not a table with tables entries, but a table with strings
-        for _, v in ipairs(Hosts_Subred) do
-          table.insert(TablaHost, v)
-        end
-
-      end
-
-    end
-
-    stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..
-                           "\t Total low-bytes nodes calculated: " .. #TablaHost)
-
-    bExito = TodoOk
-  else
-    --How this happened?
-    sError = "IPv6PRefix must be a String or a table"
-
-  end
-
-
-  return bExito, TablaHost, sError
+	until iCont >= iWseg 
+	
+	return	bExito, iTotal			
+	
 end
 
 ---
 -- This is the core of the script. Is here where  we are adding groups of host by
--- each prefix ( Only 3 bytes of each subnet).
+-- each prefix 
 -- @return Boolean   TRUE  If there were no problem, otherwise FALSE.
--- @return Table     TABLA The list of exploreds prefixes and the amount of bits
---                   of each one.
+-- @return Number    Total number of nodes added to the host phase scan.
 local PreScanning = function ()
+	
+  local IPv6PRefijoUsuario = stdnse.get_script_args "itsismx-subnet"
+  local IPv6PRefijoScripts = nmap.registry.itsismx.PrefixesKnown
+  
+  local WSegmento = stdnse.get_script_args "itsismx-lowbyt.wseg"
+  local WDec = stdnse.get_script_args "itsismx-lowbyt.wdec"
+  
+  local USegment = stdnse.get_script_args "itsismx-subnet.useg"
+  local UDec = stdnse.get_script_args "itsismx-subnet.udec"
 
-  local PrefijosUniversales = {} -- Formato esperado: X:X:X:X::/YY
-  local PrefijosUsuario = {} -- Formato esperado: X:X:X:X::/YY
-  local NumBits = 8 -- Formato esperado: 3-24
-  local tSalida = {
-    Nodos = {},
+  local Subredes, PrefixAux = {}
+  local Direccion, Prefijo
+  local bAux, iAux = true, 0
+  local IPv6Segmentada, sErr
+  
+ local  bSalida, tSalida =  true, {
+    Nodos = 0,
     Error = "",
   }
-  local bExito = false
-  local Usuarios, Universales = {}, {}
-  local bUniv, sUniv, bUser, sUser = true, "", true, ""
-
-  stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..
-                       ": Begining the Pre-scanning work... ")
-
-  PrefijosUniversales = nmap.registry.itsismx.PrefixesKnown
-  PrefijosUsuario, NumBits = stdnse.get_script_args('itsismx-subnet',
-                                                    'itsismx-LowByt.nbits')
-
-  if PrefijosUniversales == nil and PrefijosUsuario == nil then
-    tSalida.Nodos = {}
-    tSalida.Error = " There are not any prefix to scan."
-    return bExito, tSalida
-  elseif PrefijosUniversales == nil then
-    -- Zero it-s better than Nil
-    PrefijosUniversales = {}
-  elseif PrefijosUsuario == nil then
-    PrefijosUsuario = {}
-  end
-
-  -- By default we work with a Byte
-  if NumBits == nil then
-    NumBits = 8
-  elseif tonumber(NumBits) < 2 then
-    NumBits = 2
-    tSalida.Error = "Was add a very small value to nbits. Was fixed to 2"
-  elseif tonumber(NumBits) > 16 then
-    NumBits = 16
-    tSalida.Error = "Was add a very high value to nbits. Was fixed to 16"
-  end
-
-  stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..
-                       ": Numbers of bits we took as \"Low-bytes\": " .. NumBits)
-
-  if #PrefijosUniversales > 0 then
-    stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..
-                         ": Number of  Subnets Known from other sources: " ..
-                         #PrefijosUniversales)
-    bUniv, Universales, sUniv = IPv6_GetLowBytesHost(PrefijosUniversales, NumBits)
-    for _, v in ipairs(Universales) do
-      table.insert(tSalida.Nodos, v)
-    end
-  end
-  -- end
-
-  --We have two options with  PrefijosUsuario String (ONE) or Table (One or more)
-  if type(PrefijosUsuario) == "string" and #PrefijosUsuario > 0 then
-    stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..
-                         " Number of Subnets provided by  the user: 1")
-
-    bUser, Usuarios, sUser = IPv6_GetLowBytesHost(PrefijosUsuario, NumBits)
-    for _, v in ipairs(Usuarios) do
-      table.insert(tSalida.Nodos, v)
-    end
-
-  elseif #PrefijosUsuario > 0 then
-    stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..
-                         " Number of  Subnets provided by  the user: " ..
-                         #PrefijosUsuario)
-    bUser, Usuarios, sUser = IPv6_GetLowBytesHost(PrefijosUsuario, NumBits)
-    for _, v in ipairs(Usuarios) do
-      table.insert(tSalida.Nodos, v)
-    end
-  end
-
-  -- Now we have everything! except of course the final booleans...
-  bExito = bUser and bUniv
-  tSalida.Error = tSalida.Error .. "\n" .. sUniv .. "\n" .. sUser
-
-  return bExito, tSalida
-end
-
----
--- All the nodes that come to this point were discovered by the pre-scanning function
--- So we only need to generate a final report
--- @return Boolean     TRUE  If there were no problem, otherwise FALSE.
--- @return Table     TABLA  The list of exploreds prefixes and the amount of bits
---                 of each one.
-local HostScanning = function (host)
-
-  local tSalida = {
-    Nodos = {},
-    Error = "",
-  }
-  local aux
-
-  -- We are going to be sure don't do stupid thing on wrong register (Because we
-  -- don't have handlers for working with registers)
-  if nmap.registry.itsismx == nil then
-    tSalida.Error = "You must first initialize the global register Itsismx (There" ..
-                    " is a global function for that)"
+   stdnse.print_verbose(1, SCRIPT_NAME ..  ": Beginning the Pre-scanning work...")
+   
+   -- We create a unique table from IPv6PRefijo(Usuario, Scripts)
+  if IPv6PRefijoUsuario == nil and IPv6PRefijoScripts == nil then
+    tSalida.Error = "There is not IPv6 subnets to try to scan!. You can run a" ..
+	    " script for discovering or adding your own with the arg: itsismx-subnet."
     return false, tSalida
+  end   
+  
+  if IPv6PRefijoScripts ~= nil then
+    stdnse.print_verbose(1, SCRIPT_NAME .. 
+	    ":  Number of Prefixes Known from other sources: " .. #IPv6PRefijoScripts)
+    for _, PrefixAux in ipairs(IPv6PRefijoScripts) do
+      table.insert(Subredes, PrefixAux)
+    end
+  end
+  
+  if IPv6PRefijoUsuario ~= nil then
+    if type(IPv6PRefijoUsuario) == "string" then
+      stdnse.print_verbose(1, SCRIPT_NAME .. ":  Number of Prefixes Known from other sources: 1 ")
+      table.insert(Subredes, IPv6PRefijoUsuario)
+    elseif type(IPv6PRefijoUsuario) == "table" then
+      stdnse.print_verbose(1, SCRIPT_NAME .. ":  Number of Prefixes Known from other sources: " .. #IPv6PRefijoUsuario)
+      for _, PrefixAux in ipairs(IPv6PRefijoUsuario) do
+        table.insert(Subredes, PrefixAux) 
+      end
+    end
   end
 
-  aux = nmap.registry.itsismx.LowByt
-  if aux == nil then
+	-- Now we validate the 2 pairs of optional variables. (All is string by default)
+	-- Actually, only the XSegment, the other are booleans, nil==false otherwise true
+	-- WSegmento WDec USegment UDec
+	if WSegmento ~= nil then
+		WSegmento = tonumber(WSegmento)
+		if WSegmento < 0 then -- NOPE! 
+			WSegmento = nil
+			tSalida.Error = tSalida.Error .. "\n the variable itsismx-lowbyt.wseg" .. " has been ignored as have negative value"	
+		end
+	end
+	if USegment ~= nil then
+		USegment = tonumber(USegment)
+		if USegment < 0 then -- NOPE! 
+			USegment = nil
+			tSalida.Error = tSalida.Error .. "\n the variable itsismx-lowbyt.useg" .. " has been ignored as have negative value"	
+		end
+	end
 
-    tSalida.Error = "The global register Itsismx wasn't initialized correctly " ..
-                    "(There is a global function for that)"
-    stdnse.print_verbose(5, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ".WARNING: " ..
-                         tSalida.Error)
-    return false, tSalida
-  end
-
-  --We use the aux for be able to add a new element to the table
-  aux[#aux + 1] = host.ip
-  nmap.registry.itsismx.LowByt = aux
-  table.insert(tSalida.Nodos, host.ip)
-
-  return true, tSalida
+	-- Now we begin the work for each network
+	for _, PrefixAux in ipairs(Subredes) do
+		Direccion, Prefijo = itsismx.Extract_IPv6_Add_Prefix(PrefixAux)
+		
+		IPv6Segmentada, sErr = ipOps.get_parts_as_number(Direccion)
+		
+		if IPv6Segmentada == nil then 
+			bSalida = false
+			tSalida.sError = tSalida.sError .. "\n The prefix " ..  Direccion .. "was provided erroneous: " ..  sErr
+		else 
+			bAux, iAux = Crear_2Segmentos(IPv6Segmentada, Prefijo, WSegmento,  WDec, USegment, UDec )
+			
+			if (bAux ~= true) then 
+				bSalida = false
+				tSalida.sError = tSalida.sError .. "\n Was not possible to one or more of the host for the prefix " ..  Direccion 
+			end
+			tSalida.Nodos = iAux + tSalida.Nodos
+		end
+	end
+	return bSalida, tSalida
 end
 
 ---
 -- The script need to be working with IPv6
 function prerule ()
+
   if not (nmap.address_family() == "inet6") then
     stdnse.print_verbose("%s Need to be executed for IPv6.", SCRIPT_NAME)
     return false
@@ -370,102 +355,41 @@ function prerule ()
   return true
 end
 
----
--- we only need to confirm that host is one of the previous pre-scanning phase node
-function hostrule (host)
-
-  local Totales, Objetivo, bMatch, sMatch = nmap.registry.LowByt_PreHost
-  if Totales == nil then
-    return false
-  end
-
-  for _, Objetivo in pairs(Totales) do
-
-    bMatch, sMatch = ipOps.compare_ip(host.ip, "eq", Objetivo)
-    if bMatch == nil then
-      stdnse.print_verbose(1, "\t hostrule  had a error with " .. host.ip .. 
-                           "\n Error:" .. sMatch)
-    elseif bMatch then
-      return true
-    end
-  end
-
-  return false
-end
-
 
 function action (host)
 
   --Vars for created the final report
-  local tOutput = {}
-  tOutput = stdnse.output_table()
-  local bExito = false
-  local tSalida = {
-    Nodos = {},
+  local tOutput = stdnse.output_table()
+  local bExito, tSalida = false, {
     Error = "",
+	Nodos = 0,
   }
-  local bHostsPre, sHostsPre
-  local bAdding
 
-  itsismx.Registro_Global_Inicializar "LowByt"
-
-  if SCRIPT_TYPE == "prerule" then
-    bExito, tSalida = PreScanning()
-  elseif SCRIPT_TYPE == "hostrule" then
-    bExito, tSalida = HostScanning(host)
-  else
-    -- uh? (Can't happen but better cover this)
-    tSalida["Error"] = "The type of rule  isn't correct. You must review the" ..
-                       " description of the script."
-    bExito = false
+  tOutput.Nodes = 0
+  
+  -- We get the prefix ready!
+  itsismx.Registro_Global_Inicializar("LowByt")
+  
+  bExito, tSalida = PreScanning()
+	
+ -- Adapt the exit to tOutput 
+ tOutput.warning = tSalida.Error
+ 
+  if tSalida.Nodos > 0 then 
+      -- --Final report of the Debug Lvl of Prescanning
+      stdnse.print_verbose(1, SCRIPT_NAME .. 
+         ": Successful Low-Bytes to IPv6 added to the scan: " .. tSalida.Nodos)
+            
+			  
+	tOutput.Nodes = tSalida.Nodos
+   else 
+      stdnse.print_verbose(1, SCRIPT_NAME .. 
+      ": Was unable to add nodes to the scan list due this error: " .. tSalida.Error)	
   end
-
-
-  tOutput["warning"] = ""
-  tOutput["name"] = ""
-  if not bExito then
-    table.insert(tOutput, tSalida.Error)
-  else
-
-    if SCRIPT_TYPE == "prerule" then
-      -- We add the to the  host phase scanning.
-      tOutput["name"] = "LowByte: Pre-rule"
-
-      bAdding, sHostsPre = target.add(table.unpack(tSalida.Nodos))
-      if bAdding == true then
-
-        --stdnse.registry_add_array( "LowByt_PreHost", tSalida.Nodos)
-        nmap.registry.LowByt_PreHost = tSalida.Nodos
-        table.insert(tOutput, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ": Were added " ..
-                     #tSalida.Nodos .. " nodes to the scan")
-
-
-        if #tSalida.Error ~= 0 then
-          tOutput.warning = SCRIPT_NAME .. "." .. SCRIPT_TYPE ..
-                            ":WARNING: There had been some lesser inconvenient." ..
-                            " You can use -d[d] for see the problem. "
-        else
-          tOutput.warning = SCRIPT_NAME .. "." .. SCRIPT_TYPE .. "WARNING: " ..
-                 "Not all the nodes were able to place for the scanning phase." ..
-                " Only " .. sHostsPre
-        end
-        stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. "  finished.")
-      else
-        bExito = false
-        tOutput.warning = SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ": " .. sHostsPre
-      end
-
-    elseif SCRIPT_TYPE == "hostrule" then
-      -- Now we display the targets!
-      tOutput["name"] = "Host online - Low-Byte "
-      table.insert(tOutput, tSalida.Nodos)
-
-      if #tSalida.Error == 0 then
-        tOutput.warning = tSalida.Error
-      end
-
-    end
-  end
-
+	
+ if tSalida.Error ~= "" then
+   stdnse.print_verbose(2, SCRIPT_NAME ..  " Warnings:  " .. tSalida.Error)
+ end
+	
   return stdnse.format_output(bExito, tOutput)
 end

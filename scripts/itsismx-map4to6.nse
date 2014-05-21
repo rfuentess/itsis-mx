@@ -286,7 +286,7 @@ local Prescanning = function ()
         IPv6Host, sError = From_4_to_6(IPv6_Add, IPv6_Prefix, IPv4Subnets)
         if sError ~= nil then
           --print("Problema  detectado")
-          stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..}
+          stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..
                                  " ERROR: One IPv6 subnet wasnt translate")
           tSalida["Error"] = tSalida["Error"] .. "\n" .. sError
         end
@@ -414,7 +414,7 @@ function action (host)
     if bExito then
       --Final report of the Debug Lvl of Prescanning
       stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..
-              ": Succesful Mapped IPv4 to IPv6 added to the scan:" .. tSalida.Nodos)
+              ": Succesful Mapped IPv4 to IPv6 added to the scan:" .. #tSalida.Nodos)
       -- We don't add those nodes to the standard exit BECAUSE ARE TEMPTATIVE ADDRESS
       if tSalida.Error ~= "" then
         stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..
