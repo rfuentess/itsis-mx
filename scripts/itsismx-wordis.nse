@@ -12,7 +12,7 @@ description = [[
   This is the most simple and easier of all the scripts. The objective is to do a 
   discovery based on dictionary.
   
-  For each prefix we discover, we are going to check against known hex-words.  
+  For each prefix we discover, we are going to check against known hex-words.
   ( EX. 2001:db8:c0ca::beef )
   
   P.d. The dictionary still need more entries for this script become very useful. 
@@ -20,17 +20,17 @@ description = [[
 
 ---
 -- @usage
--- nmap -6 --script itsismx-wordis --script-args newtargets,itsismx-subnet={2001:db8:c0ca::/64}
+-- nmap -6 -p 80 --script itsismx-wordis --script-args newtargets,itsismx-subnet={2001:db8:c0ca::/64}
 --
 -- @output
---  Pre-scan script results:
---  | itsismx-wordis:
---  |_  itsismx-wordis.prerule:  Were added 4 nodes to the host scan phase
-
---  Host script results:
---  | itsismx-wordis:
---  | Host online - IPv6 address wordis
---  |_  2001:db8:c0ca::dead
+-- Pre-scan script results:
+-- | itsismx-wordis:
+-- |_  Were added 9 nodes to the host scan phase
+--
+-- Nmap scan report for  (2001:db8:c0ca::dead)
+-- Host is up.
+-- PORT   STATE   SERVICE
+-- 80/tcp unknown http
 
 -- @args newtargets          MANDATORY Need for the host-scaning to success
 
@@ -45,7 +45,8 @@ description = [[
 --                                prefix (Ex. 2001:db8:c0ca::/48 or
 --                                { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 } )
 
--- Version 1.2
+-- Version 1.3
+--  Updated 21/05/2014 - V1.3 Eliminate the host phase.
 --  Updated 06/05/2014 - V1.2 Minor corrections and standardization.
 --  Created 29/04/2013 - v1.0 Created by Raul Fuentes <ra.fuentess.sam+nmap@gmail.com>
 --
@@ -53,8 +54,7 @@ description = [[
 author = "Raul Fuentes"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {
-  "discovery",
-  "safe",
+  "discovery"
 }
 
 dependencies = {
@@ -74,7 +74,7 @@ dependencies = {
 -- @param   User_Segs      Number of segments to search.
 -- @param   User_Right     Boolean for fill right or left (Default)
 -- @return  Boolean        True if was successful the operation
--- @return  Table          The table with the valid host for the prefix.
+-- @return  Number         Total of successfuly nodes added to the scan list.
 -- @return  Error          Any error OR problem will be here (Default: "" not nil )
 local CrearRangoHosts = function (Direccion, Prefijo, TablaPalabras, User_Segs, User_Right)
 
@@ -82,10 +82,11 @@ local CrearRangoHosts = function (Direccion, Prefijo, TablaPalabras, User_Segs, 
   local Candidatos, sError = {}, ""
   local Indice, Palabras, MaxRangoSegmentos, Filler, Host
 
+  local iTotal, bAux, sAux = 0, false, ""
 
   if IPv6Bin == nil then
     --Niagaras!
-    return false, {}, Error
+    return false, 0, Error
   end
 
   -- Its simple, we have (128 -  n ) / ( 16 )
@@ -99,12 +100,14 @@ local CrearRangoHosts = function (Direccion, Prefijo, TablaPalabras, User_Segs, 
     MaxRangoSegmentos = tonumber(User_Segs)
   end
 
-  stdnse.print_verbose(3, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ":  Will be calculted " .. #TablaPalabras .. "  hosts for the subnet: " .. Direccion .. "/" .. Prefijo)
+  stdnse.print_verbose(3, SCRIPT_NAME .. ": Will be calculted " .. #TablaPalabras ..
+                            " hosts for the subnet: " .. Direccion .. "/" .. Prefijo)
 
   -- Palabras is a table with two elements Segmento & Binario
   for Indice, Palabras in ipairs(TablaPalabras) do
 
-    if ((tonumber(Palabras.Segmento) <= MaxRangoSegmentos) and User_Segs == false) or (User_Segs and (tonumber(Palabras.Segmento) == MaxRangoSegmentos)) then
+    if ((tonumber(Palabras.Segmento) <= MaxRangoSegmentos) and User_Segs == false) or
+         (User_Segs and (tonumber(Palabras.Segmento) == MaxRangoSegmentos)) then
 
       -- We are going to add binaries values but the question is
       -- whenever must fill with zeros?
@@ -125,12 +128,19 @@ local CrearRangoHosts = function (Direccion, Prefijo, TablaPalabras, User_Segs, 
         -- Something is very wrong but we don-t stop
         sError = sError .. "\n" .. Error
       else
-        table.insert(Candidatos, Host)
+        bAux, sAux = target.add(Host)
+        if(bAux) then
+           iTotal = iTotal + 1
+        else
+           stdnse.print_verbose(5, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..
+                                  ": Had been a error adding the node " .. Host ..
+                                  " which is: " .. sAux)
+        end
       end
     end
   end
 
-  return true, Candidatos, sError
+  return true, iTotal, sError
 end
 
 ---
@@ -184,18 +194,19 @@ end
 -- (So easy that seem we need to make them obscure)
 local Prescanning = function ()
   local bSalida, tSalida = false, {
-    Nodos = {},
+    Nodos = 0,
     Error = "",
   }
   local IPv6PRefijoUsuario = stdnse.get_script_args "itsismx-subnet"
   local IPv6PRefijoScripts = nmap.registry.itsismx.PrefixesKnown
   local TablaPalabras, sError, IPv6refijosTotales = {}, "", {}
   local PrefixAux, Prefijo, Direccion
-  local Hosts, Nodo, Indice = {}
-  local User_Segs, User_Right = stdnse.get_script_args("itsismx-wordis.nsegments", "itsismx-wordis.fillright")
+  local Hosts, Nodo, Indice = 0
+  local User_Segs, User_Right = stdnse.get_script_args("itsismx-wordis.nsegments",
+                                                       "itsismx-wordis.fillright")
 
   -- First we get the info from known prefixes because we need those Prefixes
-  stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ": Begining the Pre-scanning work... ")
+  stdnse.print_verbose(2, SCRIPT_NAME .. ": Begining the Pre-scanning work... ")
 
   -- Second, we read our vital table
   TablaPalabras = LeerArchivo()
@@ -207,12 +218,14 @@ local Prescanning = function ()
 
   -- We pass all the prefixes to one single table (health for the eyes)
   if IPv6PRefijoUsuario == nil and IPv6PRefijoScripts == nil then
-    tSalida.Error = "There is not IPv6 subnets to try to scan!. You can run a" .. " script for discovering or adding your own" .. "  with the arg: itsismx-subnet."
+    tSalida.Error = "There is not IPv6 subnets to try to scan!. You can run a" .. 
+    " script for discovering or adding your own" .. " with the arg: itsismx-subnet."
     return bSalida, tSalida
   end
 
   if IPv6PRefijoScripts ~= nil then
-    stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ":  Number of Prefixes Known from other sources: " .. #IPv6PRefijoScripts)
+    stdnse.print_verbose(2, SCRIPT_NAME ..
+    ": Number of Prefixes Known from other sources: " .. #IPv6PRefijoScripts)
     for _, PrefixAux in ipairs(IPv6PRefijoScripts) do
       table.insert(IPv6refijosTotales, PrefixAux)
     end
@@ -220,10 +233,12 @@ local Prescanning = function ()
 
   if IPv6PRefijoUsuario ~= nil then
     if type(IPv6PRefijoUsuario) == "string" then
-      stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ":  Number of Prefixes Known from other sources: 1 ")
+      stdnse.print_verbose(2, SCRIPT_NAME ..
+      ": Number of Prefixes Known from other sources: 1 ")
       table.insert(IPv6refijosTotales, IPv6PRefijoUsuario)
     elseif type(IPv6PRefijoUsuario) == "table" then
-      stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ":  Number of Prefixes Known from other sources: " .. #IPv6PRefijoUsuario)
+      stdnse.print_verbose(2, SCRIPT_NAME ..
+      ": Number of Prefixes Known from other sources: " .. #IPv6PRefijoUsuario)
       for _, PrefixAux in ipairs(IPv6PRefijoUsuario) do
         table.insert(IPv6refijosTotales, PrefixAux) -- This is healthy for my mind...
       end
@@ -234,10 +249,12 @@ local Prescanning = function ()
   -- We begin to explore all thoses prefixes and retrieve our work here
   for _, PrefixAux in ipairs(IPv6refijosTotales) do
     Direccion, Prefijo = itsismx.Extract_IPv6_Add_Prefix(PrefixAux)
-    bSalida, Hosts, sError = CrearRangoHosts(Direccion, Prefijo, TablaPalabras, User_Segs, User_Right)
+    bSalida, tSalida.Nodos, sError = CrearRangoHosts(Direccion, Prefijo, 
+                                               TablaPalabras, User_Segs, User_Right)
 
     if bSalida ~= true then
-      stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ":  There was a error for the prefix: " .. PrefixAux .. " Message:" .. sError)
+      stdnse.print_verbose(2, SCRIPT_NAME ..
+      ": There was a error for the prefix: " .. PrefixAux .. " Message:" .. sError)
     end
 
     if sError ~= "" then
@@ -245,45 +262,12 @@ local Prescanning = function ()
       tSalida.Error = tSalida.Error .. "\n" .. sError
     end
 
-    -- Now we add the discovered hosts to the final list.
-    for Indice, Nodo in ipairs(Hosts) do
-      table.insert(tSalida.Nodos, Nodo)
-    end
   end
 
 
   return true, tSalida
 end
 
----
--- This a gently wind of the script, will save the host to the final register
-local Hostscanning = function (host)
-  local tSalida = {
-    Nodos = nil,
-    Error = "",
-  }
-  local aux
-
-  -- Should be impossible, but better be sure and cover this
-  if nmap.registry.itsismx == nil then
-    tSalida.Error = "You must first initialize the global register Itsismx (There" .. " is a global function for that!)"
-    return false, tSalida
-  end
-
-  aux = nmap.registry.itsismx.wordis
-  if aux == nil then
-    tSalida.Error = "The global register Itsismx wasn't initialzed correctly " .. "(There is a global function for that!)"
-    return false, tSalida
-  end
-
-  --We use the aux for be able to add a new element to the table
-  aux[#aux + 1] = host.ip
-  nmap.registry.itsismx.wordis = aux
-
-  tSalida.Nodos = host.ip -- This rule ALWAY IS ONE ELEMENT!
-
-  return true, tSalida
-end
 
 ---
 -- The script need to be working with IPv6
@@ -294,97 +278,51 @@ function prerule ()
   end
 
   if stdnse.get_script_args 'newtargets' == nil then
-    stdnse.print_verbose(1, "%s Will only work on pre-scanning. The argument" .. " newtargets is needed for the host-scanning to work.", SCRIPT_NAME)
+    stdnse.print_verbose(2, "%s Will only work on pre-scanning. The argument" ..
+             " newtargets is needed for the host-scanning to work.", SCRIPT_NAME)
   end
 
   return true
 end
 
----
--- We need to confirm the host is one of the previous pre-scanning phase nodes
--- and return true.
-function hostrule (host)
-  local Totales, Objetivo, bMatch, sMatch = nmap.registry.wordis_PreHost
 
-  if Totales == nil then
-    return false
-  end
-
-  for _, Objetivo in pairs(Totales) do
-
-    bMatch, sMatch = ipOps.compare_ip(host.ip, "eq", Objetivo)
-    if bMatch == nil then
-      stdnse.print_verbose(1, "\t hostrule  had a error with " .. host.ip .. "\n Error:" .. sMatch)
-    elseif bMatch then
-      return true
-    end
-  end
-
-  return false
-end
-
-function action (host)
+function action ()
 
   --Vars for created the final report
   local tOutput = {}
   tOutput = stdnse.output_table()
   local bExito = false
   local tSalida = {
-    Nodos = {},
+    Nodos = 0,
     Error = "",
   }
-  local bHostsPre, sHostsPre
-  local Nodes = {} -- Is a Auxiliar
-  local sTarget
 
   itsismx.Registro_Global_Inicializar "wordis" -- Prepare everything!
 
   -- The action is divided in two parts: Pre-scanning and host scanning.
   -- The first choice the tentative hosts to scan and the second only
   -- confirm which are truly up.
-  if SCRIPT_TYPE == "prerule" then
 
-    bExito, tSalida = Prescanning()
+  bExito, tSalida = Prescanning()
 
-    -- Now we adapt the exit to tOutput and add the hosts to the target!
-    tOutput.warning = tSalida.Error
+  -- Now we adapt the exit to tOutput and add the hosts to the target!
+  tOutput.warning = tSalida.Error
 
-    if bExito then
-      for _, sHostsPre in ipairs(tSalida.Nodos) do
-        bHostsPre, sTarget = target.add(sHostsPre)
-        if bHostsPre then
-          --We add it!
-          table.insert(Nodes, sHostsPre)
-        else
-          -- Bad luck
-          tOutput.warning = tOutput.warning .. " \n" .. sTarget
-        end
-      end
-
-      --Final report of the Debug Lvl of Prescanning
-      stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..
-      " Temptative address based on words added to the scan:" .. #tSalida.Nodos ..
-                  "\n Succesful address based on words added to the scan:" .. #Nodes)
-
-      -- We don't add those nodes to the standard exit BECAUSE ARE TEMPTATIVE ADDRESS
-      nmap.registry.wordis_PreHost = Nodes
-      table.insert(tOutput, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. ":  Were added " ..
-                                            #Nodes .. " nodes to the host scan phase")
+  if bExito then
+    if tSalida.Nodos == 0 then
+    stdnse.print_verbose(2, SCRIPT_NAME .. "No nodes were added to scan list!" ..
+    " You can increase verbosity for more information" .. 
+	" (maybe not newtargets argument?) ")
+--    else
+--    stdnse.print_verbose(2, SCRIPT_NAME .. "Total nodes added: " .. tSalida.Nodos)
     end
   end
 
-  if SCRIPT_TYPE == "hostrule" then
-    bExito, tSalida = Hostscanning(host)
-    tOutput.warning = tSalida.Error
+  table.insert(tOutput, "Were added " ..
+            tSalida.Nodos .. " nodes to the host scan phase")
 
-    if bExito ~= true then
-      stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. " Error: " ..
-                                                                      tSalida.Error)
-    end
 
-    tOutput.name = "Host online - IPv6 address SLAAC"
-    table.insert(tOutput, tSalida.Nodos) --This will be alway one single host.
-  end
+
 
   return stdnse.format_output(bExito, tOutput)
 end

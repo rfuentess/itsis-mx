@@ -5,18 +5,18 @@ local stdnse = require "stdnse"
 local itsismx = require "itsismx"
 local ipOps = require "ipOps"
 
-description = [[  
+description = [[
   The objective is works as "fake" relay agent for DHCPv6. We are going to generate a
   "valid" request for host, but we are going to spoofing the Sub-network. The server
-  will send us a valid option or  nothing (if the subnet is wrong or if there is  ACL
+  will send us a valid option or nothing (if the subnet is wrong or if there is ACL
   or IPsec).
 
-  The objective is  confirm if a subset of sub-networks exist at all. Will generate
+  The objective is confirm if a subset of sub-networks exist at all. Will generate
   one single relay-forwarder message (RFC 3315 20.1.2 p. 59) with a good
   HOP_COUNT_LIMIT (Spoofed) and a host request-message (Spoofed with random DUID) and
   we are going to wait for a Relay-reply message (20.3 p. 60).
 
-  Limit: ACL on the server, ACL on the router,  IPsec between relays agent and server
+  Limit: ACL on the server, ACL on the router, IPsec between relays agent and server
   can kill this technique. However almost all the RFC 3315 is more cautious with host
   poisoning than this idea. 
 ]]
@@ -44,13 +44,13 @@ description = [[
 -- NSE: Client ID Option length: 14 bytes
 -- NSE: Server ID Option length: 14 bytes
 -- NSE:  The subnet 2001:db8:c0ca:6006::/64 is Online
--- NSE: itsismx-dhcpv6 Were added  4 subnets to scan!
+-- NSE: itsismx-dhcpv6 Were added 4 subnets to scan!
 
--- @args itsismx-dhcpv6.subnets  It's table/single  IPv6 subnetworks to test if exist.
+-- @args itsismx-dhcpv6.subnets  It's table/single IPv6 subnetworks to test if exist.
 --                We can have two types of entries: Single subnet ( X:X:X:X::/YY ), or
 --                   range of subnets to calculate (X:X:X:X::/YY , Bits, Total ) where
 --                   B are the bits used for subnetting and Total amount of subnets to
---                   search. Please, be sure of the next:  2^Bits >= Total
+--                   search. Please, be sure of the next: 2^Bits >= Total
 --                Ex. 2001:db8:c0ca::/48 or { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 }
 --                  or { {2001:db8:c0ca::/48, 16, 23} , 2001:db8:c0ca::/48} )
 --                NOTE: If one or more sub-net are discovered as valid will be added to
@@ -60,7 +60,7 @@ description = [[
 -- @args itsismx-dhcpv6.TimeToBeg  A number, 16 bits expressed in hundredths of a
 --                second. When we are sending solicits, the clients indicate how
 --                much time had spent trying to get an Address,
---                this make some server and relay agents give  preference to solicits
+--                this make some server and relay agents give preference to solicits
 --                with higher Time.
 --
 --@args itsismx-dhcpv6.Company    A String of 6 hexadecimal characters.
@@ -74,7 +74,7 @@ description = [[
 --
 --@args itsismx-dhcpv6.utime     Number. Between each try to get a subnet we wait
 --                random time measure on microseconds. By default we wait no more
---                than 200 microseconds. With this  argument the user can provided
+--                than 200 microseconds. With this argument the user can provided
 --                a another time. (Minimun 1)
 
 
@@ -127,8 +127,8 @@ function Generar_DUID ()
   --       both will be from the same source (EUI-64)
 
   -- We work first the time Variable. We need to pass to a valid represented in 
-  -- seconds since midnight (UTC) January 1, 2000  modulo 2^32
-  -- WE have a little problem there... Probably this is a EPOCH  Unix: 01/01/1970 ...
+  -- seconds since midnight (UTC) January 1, 2000 modulo 2^32
+  -- WE have a little problem there... Probably this is a EPOCH Unix: 01/01/1970 ...
   if stime > 946684800 then
     -- Ok, maybe on 17 years this is going to be fatal error
     -- We need to remove 30 years of the time from that lecture... 
@@ -144,7 +144,7 @@ function Generar_DUID ()
   end
 
   --  we are using a typical DELL PC (By default)
-  -- Future work can give a custom full host   here. (Don' forget FE80::/10 )
+  -- Future work can give a custom full host  here. (Don' forget FE80::/10 )
   local Ghost = stdnse.get_script_args "itsismx-dhcpv6.Company"
 
   if Ghost ~= nil then
@@ -155,7 +155,7 @@ function Generar_DUID ()
     else
       LinkAdd = "FE80000000000000" .. "24B6FD" .. "FFFE"
       Mac = "24B6FD"
-      stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. "DUID-LLT ERROR  " .. 
+      stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. "DUID-LLT ERROR " .. 
                            " was provided a INVALID OUI value and was ignored.")
     end
   else
@@ -193,7 +193,7 @@ end
 --      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 ---
--- Will generate a  Relay Message Option
+-- Will generate a Relay Message Option
 -- RFC 3315 22.10. p. 70.
 -- @param   String    The Spoofed message to add.
 -- @return  String    Hexadecimal bytes representing this DHCP option.
@@ -209,7 +209,7 @@ local Generar_Option_Relay = function (Mensaje)
 end
 
 ---
--- Will generate a  Client Identifier Option
+-- Will generate a Client Identifier Option
 -- RFC 3315 22.2. Client Identifier Option p. 70
 --
 -- NOTE: The Client-ID length need to be fixed for Verify_Relay_Reply() to work OK
@@ -242,7 +242,7 @@ end
 
 
 ---
--- Will generate a Identity Address Option  RFC 3315 22.6 p. 75
+-- Will generate a Identity Address Option RFC 3315 22.6 p. 75
 -- @return  String     Hexadecimal bytes representing this DHCP option.
 local Generar_IA_Option = function ()
 
@@ -270,12 +270,12 @@ local Generar_IA_Option = function ()
   local Op_IAADDR, option_len, Ipv6Add, preferred, valid, options
   Op_IAADDR = "0005"
 
-  --values in the preferred  and valid lifetime fields indicate the client's
-  -- preference for those parameters.  The client may send 0 if it has no
+  --values in the preferred and valid lifetime fields indicate the client's
+  -- preference for those parameters. The client may send 0 if it has no
   -- preference for the preferred and valid lifetimes.
   preferred, valid = "00000000", "00000000"
 
-  -- For now... static but should  be dynamic... if is not static
+  -- For now... static but should be dynamic... if is not static
   -- we risk to been discovered (Two interfaces can have same link/address
   -- as long they are on different subnets)
   --Ipv6Add = "FE8000000000000062eb69fffeaf2b83"
@@ -293,7 +293,7 @@ local Generar_IA_Option = function ()
 end
 
 ---
--- Will generate a  IA_TA Option
+-- Will generate a IA_TA Option
 -- RFC 3315 22.5. Client Identifier Option p. 74
 -- @return  String    Hexadecimal bytes representing this DHCP option.
 -- @return  String    Hexadecimal bytes representing the IAID.
@@ -302,11 +302,11 @@ local Generar_Option_IA_TA = function ()
   local Option_Code, Option_Len, IAID, Options = "0004", 4, 0, ""
 
   -- This is going to be very important for the binding (Well at least
-  -- for a real client). With the IAID for a temporary Address and with  DUID
+  -- for a real client). With the IAID for a temporary Address and with DUID
   -- The IAID  ( RFC 3315 p. 9)
 
   -- RFC 3315 p. 11
-  --  An identifier for an IA, chosen by the client.  Each IA has an IAID, which is
+  --  An identifier for an IA, chosen by the client. Each IA has an IAID, which is
   --  chosen to be unique among all IAIDs for IAs belonging to that client.
 
   -- The RFC say "Client generate IAID" and the IAID is 4 octets...
@@ -322,7 +322,7 @@ local Generar_Option_IA_TA = function ()
   -- I'm assume we need the Satus Code NoBinding ( 0x02 )
   -- or maybe none ?
   -- P. 76 RFC 3314 22.6
-  -- Sep13: After seeing the work of current implemented servers  seem it's better
+  -- Sep13: After seeing the work of current implemented servers seem it's better
   -- left it on blank.
   Options = Generar_IA_Option()
   --Options = ""
@@ -341,7 +341,7 @@ local Generar_Option_IA_TA = function ()
 end
 
 ---
--- Will generate a  IA_NA Option
+-- Will generate a IA_NA Option
 -- RFC 3315 22.3. Client Identifier Option p. 74
 -- @return  String     Hexadecimal bytes representing this DHCP option.
 -- @return  String    Hexadecimal bytes representing the IAID.
@@ -370,7 +370,7 @@ local Generar_Option_IA_NA = function ()
   -- Read the Generar_Option_IA_TA comments
   -- RFC 3315 p. 74:
   --  In a message sent by a client to a server, values in the T1 and T2
-  --  fields indicate the client's preference for those parameters.  The
+  --  fields indicate the client's preference for those parameters. The
   --  client sets T1 and T2 to 0 if it has no preference for those values.
 
   Option_Code, T1, T2 = "0003", "00000000", "00000000"
@@ -395,8 +395,8 @@ local Generar_Option_IA_NA = function ()
 end
 
 ---
--- Will generate a  Elapsed Time Option
--- RFC 3315 22.9. Elapsed Time Option  p. 78
+-- Will generate a Elapsed Time Option
+-- RFC 3315 22.9. Elapsed Time Option p. 78
 -- @return  String     Hexadecimal bytes representing this DHCP option.
 local Generar_Option_Elapsed_Time = function ()
 
@@ -404,7 +404,7 @@ local Generar_Option_Elapsed_Time = function ()
   -- TIP: elapsed-time field is set to 0 in the first message in the message
   -- TIP: unsigned, 16 bit integer
 
-  -- Generate bigger "time" fields  for seem to be "begging" for a quick answer.
+  -- Generate bigger "time" fields for seem to be "begging" for a quick answer.
   local TimetoBeg = stdnse.get_script_args "itsismx-dhcpv6.TimeToBeg"
 
   if TimetoBeg ~= nil then
@@ -423,7 +423,7 @@ end
 
 ---
 -- Will generate a Option Request Option
--- RFC 3315 22.7. Elapsed Time Option  p. 78
+-- RFC 3315 22.7. Elapsed Time Option p. 78
 --
 -- Though optional on DHCP all the clients request something more than,
 -- we try to no trigger alarm with a strange empty request.
@@ -445,7 +445,7 @@ local Generar_Option_Request = function ()
   local Option_Oro, Option_Len, req_option_code1 = "0006", "0002"
 
   -- The RFC is not clear which are our option however, there is a known one for ask
-  -- the  domain name which is 24 (0x0018)
+  -- the domain name which is 24 (0x0018)
   req_option_code1 = "0018"
 
   -- Future work will give the options to add more things (Maybe from a Byte Flag)
@@ -480,12 +480,12 @@ local Spoof_Host_Solicit = function ()
   --   msg-type SOLICIT Message (0x01)
   --  transaction-id   - Random value seem to be (We need to remember IT!)
   --  Options:          - We are force to add (At least) Client Identifier Option,
-  --                        IA_TA option and  Elapsed Time option
+  --                        IA_TA option and Elapsed Time option
   --
 
   -- TIP: Our fake host is going to use "temporary address" so, we only focus on IA_TA
 
-  -- TIP: RFC p. 32 say we need to wait random time, however this is a Spoofed  request
+  -- TIP: RFC p. 32 say we need to wait random time, however this is a Spoofed request
   -- after the node is already configured, so... we ignore it.
 
   local Solicit, Error = "01", nil
@@ -503,13 +503,13 @@ local Spoof_Host_Solicit = function ()
   --   The "transaction-id" field holds a value used by clients and servers
   --   to synchronize server responses to client messages.
   -- RFC 3315, 17.1.1 P. 31
-  --   The client sets the "msg-type" field to SOLICIT.  The client
+  --   The client sets the "msg-type" field to SOLICIT. The client
   --   generates a transaction ID and inserts this value in the
   --   "transaction-id" field.
   -- Tip: The transaction-ID SHOULD be a strong random, however this is a spoofing
   -- we are going to be very simple (but random for help us with multiple subnets. )
 
-  -- NOTE: For now, Na_or_Ta  has been disabled until we implemented a truly TA
+  -- NOTE: For now, Na_or_Ta has been disabled until we implemented a truly TA
   --   local Na_or_Ta = stdnse.get_script_args( "itsismx-dhcpv6.IA_NA" )
   local Na_or_Ta = true
 
@@ -562,7 +562,7 @@ local Spoof_Host_Solicit = function ()
 
   -- Now we update the Tuple for this host
   Host.DUID = DUID
-  Host.Type = "temporary" -- For this version we're  using only IA_TA
+  Host.Type = "temporary" -- For this version we're using only IA_TA
   Host.IAID = IAID
   Host.LinkAdd = LinkAdd
 
@@ -572,7 +572,7 @@ local Spoof_Host_Solicit = function ()
 
 
   -- A this point we should have a valid SOLICIT Message... for this alpha version
-  -- we are  going to have blind faith
+  -- we are going to have blind faith
   if Na_or_Ta == nil then
     Solicit = Solicit .. TransactionID .. ClientID .. IA_TA .. Time
   else
@@ -640,7 +640,7 @@ local Spoof_Relay_Forwarder = function (Source, SOLICIT, Subnet)
   elseif #Subnet == 0 then
     linkAdd = "20010db8c0ca00000000000000000001"
   else
-    --We assume is  IPv6 Address and we need to convert to Hexadecimal value
+    --We assume is IPv6 Address and we need to convert to Hexadecimal value
 
     Address, Prefix = itsismx.Extract_IPv6_Add_Prefix(Subnet)
     --We use the last IPv6 addresses because is always valid
@@ -650,7 +650,7 @@ local Spoof_Relay_Forwarder = function (Source, SOLICIT, Subnet)
       stdnse.print_verbose(1, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. 
                 "\n\t Relay Forward: " .. " The subnet provided (" .. 
                 stdnse.string_or_blank(Subnet) .. 
-                ")  was bad formed and throw the next error: " .. sError)
+                ") was bad formed and throw the next error: " .. sError)
       return "", sError
     else
       -- WE need to expand the IPv6 address to use all the hexadecimals
@@ -675,12 +675,12 @@ end
 -- the IA-NA or IA-TA  IPv6 address suggested by the server.
 -- @param   String     The Peer Address or better say OUR fake Relay Agent address.
 -- @param   Bytes      The full Relay-Reply message from our server.
--- @param   String     X:X:X:X::/YY  subnet we want to confirm.
+-- @param   String     X:X:X:X::/YY subnet we want to confirm.
 -- @return  Boolean    The subnet and the answer match (TRUE), otherwise False
 -- @return  String     Nil if the boolean is true, otherwise give hints of the error.
 local Verify_Relay_Reply = function (PeerAddress, Relay_Reply, Subnet)
 
-  --The message we got have the next  structure:
+  --The message we got have the next structure:
   --    msg-type:       RELAY-REPLY (0x0d)
   --    hop-count:      0x00
   --    link-address:   0 ( 128 bits)
@@ -691,7 +691,7 @@ local Verify_Relay_Reply = function (PeerAddress, Relay_Reply, Subnet)
   --        Relay-Message    (Variable... but should be Adverstiment Message)
 
   -- Our TCPdump filter   has all the thing is important to us and as we are at the
-  -- end of the chain our Relay-message  has only one Message option left so the 
+  -- end of the chain our Relay-message has only one Message option left so the 
   -- first extension is know to us. 
   -- 8+8+128+128+16+16=304/8
   -- So, we begin at line 305 and we are going to have this message:
@@ -708,7 +708,7 @@ local Verify_Relay_Reply = function (PeerAddress, Relay_Reply, Subnet)
   --      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
   --    msg-type: 0x02
-  --    transaction-id:  (16 bits)
+  --    transaction-id: (16 bits)
   --    Options... CaN BE VARIABLE
 
   local Longitud, Adv_Msg = #Relay_Reply - (49 + 38) + 1, ""
@@ -723,7 +723,7 @@ local Verify_Relay_Reply = function (PeerAddress, Relay_Reply, Subnet)
   end
   -- Now we have two possible scenarios:
   -- IA-TA with the next structure:
-  --    Client ID Option  (Our target is here)
+  --    Client ID Option (Our target is here)
   --    Server ID Option
   --    Plus any other options (WE don't care)
   -- IA-NA with the next structure
@@ -790,7 +790,7 @@ local Verify_Relay_Reply = function (PeerAddress, Relay_Reply, Subnet)
 
   else
     -- TODO: Need to add those lines when Find a good document talking about
-    --  the format as the RFC is unclear how to address it.
+    -- the format as the RFC is unclear how to address it.
     stdnse.print_verbose(1, "IA-TA is not yet implemented.!")
   end
 
@@ -803,7 +803,7 @@ local Verify_Relay_Reply = function (PeerAddress, Relay_Reply, Subnet)
 end
 
 ---
--- Will create a spoofed message for transmit (any message)  and immediately
+-- Will create a spoofed message for transmit (any message) and immediately
 -- will hear for a answer (to be selected by a filter) and will return it.
 --
 -- You may want to use -d1 to catch any error.
@@ -832,7 +832,7 @@ local Transmision_Recepcion = function (IPv6src, IPv6dst, Prtsrc, Prtdst, Mensaj
   -- local condvar = nmap.condvar(results)
 
   local src_mac = packet.mactobin "00:D0:BB:00:7d:01" -- (Spoofed) Cisco device!
-  -- NOTE: We need a Multicast MAC address, however  33:33:00:00:00:01 it's not
+  -- NOTE: We need a Multicast MAC address, however 33:33:00:00:00:01 it's not
   --       valid (or better say, never worked for me)
   local dst_mac = packet.mactobin "33:33:00:01:00:02"
 
@@ -853,15 +853,15 @@ local Transmision_Recepcion = function (IPv6src, IPv6dst, Prtsrc, Prtdst, Mensaj
   --    mode.
   --    bpf: A string describing a Berkeley Packet Filter expression (like those
   --    provided to tcpdump).
-  -- At spanish WE WANT  ONLY ONE Type of answer
-  Tcpdumpfilter = "ip6 dst  " .. IPv6src .. 
+  -- At spanish WE WANT ONLY ONE Type of answer
+  Tcpdumpfilter = "ip6 dst " .. IPv6src .. 
                   " and udp src port 547 and udp dst port 547"
 
-  stdnse.print_verbose(5, "\t The DCPdump filter:  \t" .. Tcpdumpfilter)
+  stdnse.print_verbose(5, "\t The DCPdump filter: \t" .. Tcpdumpfilter)
   pcap:pcap_open(Interfaz.device, 1500, true, Tcpdumpfilter)
 
   -- From zero...
-  -- We need a UDP datagram, then a IP packet  and finally a Ethernet Frame...
+  -- We need a UDP datagram, then a IP packet and finally a Ethernet Frame...
   -- UDP and IP are declared inside of the "Packet class" on packet.lua
   local Spoofed = packet.Packet:new()
 
@@ -887,7 +887,7 @@ local Transmision_Recepcion = function (IPv6src, IPv6dst, Prtsrc, Prtdst, Mensaj
   -- En teoria ya arme el paquete UDP, sigue completar IPv6
   Spoofed:count_ipv6_pseudoheader_cksum()
 
-  -- We already have everything, however, we can spoof  the MAC address
+  -- We already have everything, however, we can spoof the MAC address
   -- This part of packet.lua is CRAP we ignore the "class"
   -- and write the info directly to our Frame to send.
   local probe = packet.Frame:new()
@@ -901,7 +901,7 @@ local Transmision_Recepcion = function (IPv6src, IPv6dst, Prtsrc, Prtdst, Mensaj
 
   -- HERE IS THE SECOND PART OF FUTURE WORK
   -- If we are trying to spoof nodes, we need to listen NDP Neighbor Solicitation
-  -- for our spoofed node and then answer it with the correct  NDP Neighbor
+  -- for our spoofed node and then answer it with the correct NDP Neighbor
   -- Adverstiment (Or just send the second?).
 
   -- More info: http://nmap.org/nsedoc/lib/nmap.html#pcap_receive
@@ -916,7 +916,7 @@ local Transmision_Recepcion = function (IPv6src, IPv6dst, Prtsrc, Prtdst, Mensaj
   elseif status == true then
     -- We got a packet ... time to work with it
     -- On this point we got a packet with a length of 100-110 bytes
-    -- OR  100 to 110 hexadecimal characters big-end
+    -- OR 100 to 110 hexadecimal characters big-end
     Bool, err = Verify_Relay_Reply(src_ip6, l3_data, Subnet)
 
     if Bool == false then
@@ -944,7 +944,7 @@ end
 -- The first is very simple, the user already made all the work.
 -- The second however we need to sub-netting (YY+B) and calculate
 -- the first T subnets from the new prefix.
--- @param     Subnet   String/Table of subnets  X:X:X:X::/YY | {X:X:X:X::/YY, B, T}
+-- @param     Subnet   String/Table of subnets X:X:X:X::/YY | {X:X:X:X::/YY, B, T}
 -- @return    Table    Table of subnets X:X:X:X::/(YY+B)
 local Extaer_Subredes = function (Subnet)
 
@@ -953,7 +953,7 @@ local Extaer_Subredes = function (Subnet)
   local Net, Bits, Total, Dirre, Prefijo, NewPrefix, Binario, NewNet, mensaje
 
   if type(Subnet) == "table" then
-    --  {X:X:X:X::/YY, B, T}  ??
+    --  {X:X:X:X::/YY, B, T} ??
 
     Net, Bits, Total = Subnet[1], Subnet[2], Subnet[3]
     Dirre, Prefijo = itsismx.Extract_IPv6_Add_Prefix(Net)
@@ -962,7 +962,7 @@ local Extaer_Subredes = function (Subnet)
     Binario, mensaje = ipOps.ip_to_bin(Dirre)
 
     if Binario ~= nil then
-      -- We  proceed to save the entry to the list.
+      -- We proceed to save the entry to the list.
       for Contador = 1, Total do
         -- There is a very low risk of overflow with this tactic...
         Valor = stdnse.tobinary(Contador)
@@ -1019,7 +1019,7 @@ local Listado_Subredes = function ()
     end
 
   else
-    -- We need  provided at least one valid sub-net (Future works will
+    -- We need provided at least one valid sub-net (Future works will
     -- let use the current interface IPv6 subnet (48 bits)
     stdnse.print_verbose(1, SCRIPT_NAME .. " ERROR: Need to provided at least one " ..
                     " single subnet to test. Use the argument itsismx-dhcpv6.subnets ")
@@ -1033,7 +1033,7 @@ end
 -- The script need to be working with IPv6.
 function prerule ()
   if not (nmap.is_privileged()) then
-    stdnse.print_verbose("%s  with lack of privileges (and we need GNU/Linux).",
+    stdnse.print_verbose("%s with lack of privileges (and we need GNU/Linux).",
                           SCRIPT_NAME)
     return false
   end
@@ -1043,7 +1043,7 @@ function prerule ()
     return false
   end
 
-  -- Need to  have access to one ethernet port at least.
+  -- Need to have access to one ethernet port at least.
   --local iface, err = nmap.get_interface_info("eth0")
   if nmap.get_interface() == nil then
     stdnse.print_verbose("The NSE Script need to work with a Ethernet Interface" ..
@@ -1104,7 +1104,7 @@ function action ()
     -- NOTE:  We can spoof the message, however, the source need to exist before
     -- hand or we are going to have problems due Neighbor Discover Protocol. This
     -- mean, at least there is preventive work for spoofing (Which will be left
-    -- for future  work we need to use a REAL IPv6 source address).
+    -- for future work we need to use a REAL IPv6 source address).
     if Bool_IPv6Address == nil then
       local iface, err = nmap.get_interface_info(nmap.get_interface())
 
@@ -1141,7 +1141,7 @@ function action ()
   -- There is at least one node on the list ?
   if bExito then
     nmap.registry.itsismx.PrefixesKnown = tSalida.Subnets
-    stdnse.print_verbose(1, SCRIPT_NAME .. " Were added  " .. #tSalida.Subnets ..
+    stdnse.print_verbose(1, SCRIPT_NAME .. " Were added " .. #tSalida.Subnets ..
                          " subnets to scan!")
   else
     itsismx.Registro_Global_Inicializar "PrefixesKnown" -- We prepare our work!
