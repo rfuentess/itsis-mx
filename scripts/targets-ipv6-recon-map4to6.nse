@@ -3,7 +3,7 @@ local nmap = require "nmap"
 local stdnse = require "stdnse"
 local table = require "table"
 local target = require "target"
-local itsismx = require "itsismx"
+local itsismx = require "targets-ipv6-recon"
 local tab = require "tab"
 
 description = [[
@@ -22,26 +22,26 @@ description = [[
 
 ---
 -- @usage
--- nmap -6 -p 80 --script itsismx-Map4to6 --script-args newtargets,itsismx-Map4t6.IPv4Hosts={192.168.1.0/24},itsismx-subnet={2001:db8:c0ca::/64}
+-- nmap -6 -p 80 --script targets-ipv6-recon-Map4to6 --script-args newtargets,targets-ipv6-recon-Map4t6.IPv4Hosts={192.168.1.0/24},targets-ipv6-recon-subnet={2001:db8:c0ca::/64}
 --
 --
 
 -- @output
 -- Pre-scan script results:
--- | itsismx-Map4to6:
+-- | targets-ipv6-recon-Map4to6:
 -- |_  Were added 254 nodes to the host scan phase
 -- Nmap scan report for  (2001:db8:c0ca::c0a8:101)
 -- Host is up.
 -- PORT   STATE   SERVICE
 -- 80/tcp unknown http
 
--- @args itsismx-Map4t6.IPv4Hosts      This must have at least one IPv4 Host  for the
+-- @args targets-ipv6-recon-Map4t6.IPv4Hosts      This must have at least one IPv4 Host  for the
 --                                     script be able to work (Ex. 192.168.1.1 or
 --                                     { 192.168.1.1, 192.168.2.2 } ) or Subnet
 --                                     Addresses ( 192.168.1.0/24 or
 --                                     { 192.168.1.0/24, 192.168.2.0/24 } )
 
--- @args itsismx-subnet                 It's table/single  IPv6 address with prefix
+-- @args targets-ipv6-recon-subnet                 It's table/single  IPv6 address with prefix
 --                                      (Ex. 2001:db8:c0ca::/48 or
 --                                      { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 } )
 
@@ -64,7 +64,7 @@ categories = {
 }
 
 dependencies = {
-  "itsismx-dhcpv6",
+  "targets-ipv6-recon-dhcpv6",
 }
 
 ---
@@ -191,8 +191,8 @@ local Prescanning = function ()
   }
   local IPv6_Subnet, IPv6_Add, IPv6_Prefix
   local IPv6Host, sError, Grantotal = nil, nil, 0
-  local IPv4Subnets, IPv6User = stdnse.get_script_args("itsismx-Map4t6.IPv4Hosts",
-                                                       "itsismx-subnet")
+  local IPv4Subnets, IPv6User = stdnse.get_script_args("targets-ipv6-recon-Map4t6.IPv4Hosts",
+                                                       "targets-ipv6-recon-subnet")
   local IPv6Knowns = nmap.registry.itsismx.PrefixesKnown
   local iIndex
 
@@ -282,7 +282,7 @@ local Prescanning = function ()
     else
       -- This only mean the user pass something odd...
       stdnse.print_verbose(2, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..
-                    " WARNING:  The itsismx-subnet was ignored because wrong values")
+                    " WARNING:  The targets-ipv6-recon-subnet was ignored because wrong values")
     end
 
 
@@ -323,6 +323,7 @@ function action ()
   local sHostsPre, bTarget, sTarget
   local Nodes = {} -- Is a Auxiliar
   tOutput.Nodes = {}
+  
   itsismx.Registro_Global_Inicializar "Map4t6" -- We prepare our work!
 
   -- The aciton is divided in two parts: Pre-scanning and host scanning.

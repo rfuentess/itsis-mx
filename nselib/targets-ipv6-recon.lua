@@ -15,7 +15,7 @@ local stdnse = require "stdnse"
 local table = require "table"
 local strict = require "strict"
 local math = require "math"
-_ENV = stdnse.module("itsismx", stdnse.seeall)
+_ENV = stdnse.module("targets-ipv6-recon", stdnse.seeall)
 
 
 --[[ Tools for  brute sweep of IPv6 Address

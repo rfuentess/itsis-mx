@@ -2,7 +2,7 @@ local bin = require "bin"
 local nmap = require "nmap"
 local packet = require "packet"
 local stdnse = require "stdnse"
-local itsismx = require "itsismx"
+local itsismx = require "targets-ipv6-recon"
 local ipOps = require "ipOps"
 
 description = [[
@@ -24,18 +24,18 @@ description = [[
 
 ---
 -- @usage
--- nmap -6 -e eth0 -v --script itsismx-dhcpv6 --script-args itsismx-dhcpv6.subnets= 2001:db8:c0ca:6006::/64
+-- nmap -6 -e eth0 -v --script targets-ipv6-recon-dhcpv6 --script-args targets-ipv6-recon-dhcpv6.subnets=2001:db8:c0ca:6006::/64
 --
 -- @output
--- NSE: itsismx-dhcpv6.Solicit:  New SOLICIT Message. ID: 09bec2
--- NSE: itsismx-dhcpv6.Solicit:  Client ID: 0001000e000100011a07eb1a24B6FDe46629
--- NSE: itsismx-dhcpv6.Solicit:  IA-NA :  0003000c0000000f0000000000000000
--- NSE: itsismx-dhcpv6.Solicit:  Time: 000800020000
--- NSE: itsismx-dhcpv6.Solicit:  (G)Host - Link-Address: FE8000000000000026B6FDFFFEe46629
+-- NSE: targets-ipv6-recon-dhcpv6.Solicit:  New SOLICIT Message. ID: 09bec2
+-- NSE: targets-ipv6-recon-dhcpv6.Solicit:  Client ID: 0001000e000100011a07eb1a24B6FDe46629
+-- NSE: targets-ipv6-recon-dhcpv6.Solicit:  IA-NA :  0003000c0000000f0000000000000000
+-- NSE: targets-ipv6-recon-dhcpv6.Solicit:  Time: 000800020000
+-- NSE: targets-ipv6-recon-dhcpv6.Solicit:  (G)Host - Link-Address: FE8000000000000026B6FDFFFEe46629
 -- type of request: temporary
 -- DUID: 000100011a07eb1a24B6FDe46629
 -- IAID: 0000000f
--- NSE: itsismx-dhcpv6.prerule
+-- NSE: targets-ipv6-recon-dhcpv6.prerule
 --     Relay Forward:  msg_type: 0C
 --     hopcount: 0C
 --     linkAdd: 20010db8c0ca6006ffffffffffffffff
@@ -44,9 +44,9 @@ description = [[
 -- NSE: Client ID Option length: 14 bytes
 -- NSE: Server ID Option length: 14 bytes
 -- NSE:  The subnet 2001:db8:c0ca:6006::/64 is Online
--- NSE: itsismx-dhcpv6 Were added 4 subnets to scan!
+-- NSE: targets-ipv6-recon-dhcpv6 Were added 4 subnets to scan!
 
--- @args itsismx-dhcpv6.subnets  It's table/single IPv6 subnetworks to test if exist.
+-- @args targets-ipv6-recon-dhcpv6.subnets  It's table/single IPv6 subnetworks to test if exist.
 --                We can have two types of entries: Single subnet ( X:X:X:X::/YY ), or
 --                   range of subnets to calculate (X:X:X:X::/YY , Bits, Total ) where
 --                   B are the bits used for subnetting and Total amount of subnets to
@@ -57,22 +57,22 @@ description = [[
 --                   a special registry for all the other scripts (words, slaac,
 --                   map4to6, mac-prefixes) to be used.
 --
--- @args itsismx-dhcpv6.TimeToBeg  A number, 16 bits expressed in hundredths of a
+-- @args targets-ipv6-recon-dhcpv6.TimeToBeg  A number, 16 bits expressed in hundredths of a
 --                second. When we are sending solicits, the clients indicate how
 --                much time had spent trying to get an Address,
 --                this make some server and relay agents give preference to solicits
 --                with higher Time.
 --
---@args itsismx-dhcpv6.Company    A String of 6 hexadecimal characters.
+--@args targets-ipv6-recon-dhcpv6.Company    A String of 6 hexadecimal characters.
 --                By default the script will generate random hosts from a DELL OUI
 --                (24B6FD). With this argument the user can provided
 --                a specific OUI. However, the last 24 bits will still be generate
 --                randomly.
 --
---@args itsismx-dhcpv6.Option_Request  If given a Option request will be added to
+--@args targets-ipv6-recon-dhcpv6.Option_Request  If given a Option request will be added to
 --                the host request.
 --
---@args itsismx-dhcpv6.utime     Number. Between each try to get a subnet we wait
+--@args targets-ipv6-recon-dhcpv6.utime     Number. Between each try to get a subnet we wait
 --                random time measure on microseconds. By default we wait no more
 --                than 200 microseconds. With this argument the user can provided
 --                a another time. (Minimun 1)
@@ -145,7 +145,7 @@ function Generar_DUID ()
 
   --  we are using a typical DELL PC (By default)
   -- Future work can give a custom full host  here. (Don' forget FE80::/10 )
-  local Ghost = stdnse.get_script_args "itsismx-dhcpv6.Company"
+  local Ghost = stdnse.get_script_args "targets-ipv6-recon-dhcpv6.Company"
 
   if Ghost ~= nil then
     -- We need to be sure the OUI be a valid
@@ -405,7 +405,7 @@ local Generar_Option_Elapsed_Time = function ()
   -- TIP: unsigned, 16 bit integer
 
   -- Generate bigger "time" fields for seem to be "begging" for a quick answer.
-  local TimetoBeg = stdnse.get_script_args "itsismx-dhcpv6.TimeToBeg"
+  local TimetoBeg = stdnse.get_script_args "targets-ipv6-recon-dhcpv6.TimeToBeg"
 
   if TimetoBeg ~= nil then
     elapsed = itsismx.DecToHex(TimetoBeg)
@@ -510,10 +510,10 @@ local Spoof_Host_Solicit = function ()
   -- we are going to be very simple (but random for help us with multiple subnets. )
 
   -- NOTE: For now, Na_or_Ta has been disabled until we implemented a truly TA
-  --   local Na_or_Ta = stdnse.get_script_args( "itsismx-dhcpv6.IA_NA" )
+  --   local Na_or_Ta = stdnse.get_script_args( "targets-ipv6-recon-dhcpv6.IA_NA" )
   local Na_or_Ta = true
 
-  local Bool_Option_Req = stdnse.get_script_args "itsismx-dhcpv6.Option_Request"
+  local Bool_Option_Req = stdnse.get_script_args "targets-ipv6-recon-dhcpv6.Option_Request"
 
   -- Counter or Random ? That is the question...
   TransactionID = itsismx.DecToHex(math.random(16777216)) -- 2^24
@@ -734,7 +734,7 @@ local Verify_Relay_Reply = function (PeerAddress, Relay_Reply, Subnet)
 
   -- The Client ID OPtion is variable...
 
-  local Na_or_Ta = stdnse.get_script_args "itsismx-dhcpv6.IA_NA"
+  local Na_or_Ta = stdnse.get_script_args "targets-ipv6-recon-dhcpv6.IA_NA"
   Na_or_Ta = true
 
   local offset = 0
@@ -996,7 +996,7 @@ end
 -- @return    Table  total subnets to sue for spoofing.
 local Listado_Subredes = function ()
   local TotalNets, Aux = {}, {}
-  local Subredes = stdnse.get_script_args "itsismx-dhcpv6.subnets"
+  local Subredes = stdnse.get_script_args "targets-ipv6-recon-dhcpv6.subnets"
 
   local index, campo, Subnets
   local interface_name
@@ -1022,7 +1022,7 @@ local Listado_Subredes = function ()
     -- We need provided at least one valid sub-net (Future works will
     -- let use the current interface IPv6 subnet (48 bits)
     stdnse.print_verbose(1, SCRIPT_NAME .. " ERROR: Need to provided at least one " ..
-                    " single subnet to test. Use the argument itsismx-dhcpv6.subnets ")
+                    " single subnet to test. Use the argument targets-ipv6-recon-dhcpv6.subnets ")
 
   end
 
@@ -1076,8 +1076,8 @@ function action ()
     Subnets = {},
     Error = "",
   }
-  local microseconds = stdnse.get_script_args "itsismx-dhcpv6.utime"
-  local Bool_IPv6Address = stdnse.get_script_args "itsismx-dhcpv6.Spoofed_IPv6Address"
+  local microseconds = stdnse.get_script_args "targets-ipv6-recon-dhcpv6.utime"
+  local Bool_IPv6Address = stdnse.get_script_args "targets-ipv6-recon-dhcpv6.Spoofed_IPv6Address"
   local Spoofed_IPv6Address
 
   if microseconds == nil then
@@ -1087,8 +1087,9 @@ function action ()
   end
 
   tOutput.Subnets = {}
-  itsismx.Registro_Global_Inicializar "dhcpv6" -- We prepare our work!
-
+ -- itsismx.Registro_Global_Inicializar "dhcpv6" -- We prepare our work!
+  itsismx.Registro_Global_Inicializar "PrefixesKnown"
+  
   local Mensaje, Host, Error, Relay
   local UserSubnets, Index, Subnet
 
@@ -1130,7 +1131,7 @@ function action ()
       table.insert(tSalida.Subnets, Subnet)
     end
 
-    --Before we pass to the next sub/net candidate we must wait a little time
+    --Before we pass to the next sub-net candidate we must wait a little time
     -- Normally Nmap will love to create multi-threadings, however WE MUST
     -- be careful and not produce to manny DHCPv6 requests at same time
     -- so, we need truly to kill time.
@@ -1144,8 +1145,6 @@ function action ()
     stdnse.print_verbose(1, SCRIPT_NAME .. " Were added " .. #tSalida.Subnets ..
                          " subnets to scan!")
   else
-    itsismx.Registro_Global_Inicializar "PrefixesKnown" -- We prepare our work!
-    nmap.registry.itsismx.PrefixesKnown = tSalida.Subnets
     stdnse.print_verbose(1, SCRIPT_NAME .. " Not sub-net were added to the" ..
                          " scan list!")
   end

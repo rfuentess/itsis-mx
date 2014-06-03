@@ -2,7 +2,7 @@ local ipOps = require "ipOps"
 local nmap = require "nmap"
 local stdnse = require "stdnse"
 local target = require "target"
-local itsismx = require "itsismx"
+local itsismx = require "targets-ipv6-recon"
 local datafiles = require "datafiles"
 local bin = require "bin"
 local table = require "table"
@@ -20,11 +20,11 @@ description = [[
 
 ---
 -- @usage
--- nmap -6 -p 80 --script itsismx-wordis --script-args newtargets,itsismx-subnet={2001:db8:c0ca::/64}
+-- nmap -6 -p 80 --script targets-ipv6-recon-wordis --script-args newtargets,targets-ipv6-recon-subnet={2001:db8:c0ca::/64}
 --
 -- @output
 -- Pre-scan script results:
--- | itsismx-wordis:
+-- | targets-ipv6-recon-wordis:
 -- |_  Were added 9 nodes to the host scan phase
 --
 -- Nmap scan report for  (2001:db8:c0ca::dead)
@@ -34,14 +34,14 @@ description = [[
 
 -- @args newtargets          MANDATORY Need for the host-scaning to success
 
--- @args itsismx-wordis.nsegments  (Optional) Number  - User can indicate exactly how
+-- @args targets-ipv6-recon-wordis.nsegments  (Optional) Number  - User can indicate exactly how
 --                                  big the word must be (Segments of 16 bits).
 
--- @args itsismx-wordis.fillright  (Optional) With this argument the script will fill
+-- @args targets-ipv6-recon-wordis.fillright  (Optional) With this argument the script will fill
 --                                 remaining zeros to the right instead of left
 --                                 (2001:db8:c0a:dead:: instead of 2001:db8:c0ca::dead)
 
--- @args itsismx-subnet           (Optional)  IT's table/single  IPv6 address with
+-- @args targets-ipv6-recon-subnet           (Optional)  IT's table/single  IPv6 address with
 --                                prefix (Ex. 2001:db8:c0ca::/48 or
 --                                { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 } )
 
@@ -58,7 +58,7 @@ categories = {
 }
 
 dependencies = {
-  "itsismx-dhcpv6",
+  "targets-ipv6-recon-dhcpv6",
 }
 
 ---
@@ -152,7 +152,7 @@ end
 -- @return  String         Empty if there is no error, otherwise the error message.
 local LeerArchivo = function ()
   -- [ "^%s*(%w+)%s+[^#]+" ] = "^%s*%w+%s+([^#]+)" }
-  local bBoolean, Archivo = datafiles.parse_file("nselib/itsismx-words-known", {
+  local bBoolean, Archivo = datafiles.parse_file("nselib/targets-ipv6-recon-words-known", {
       "^[^#]+%d",
     })
   local index, reg, token
@@ -197,13 +197,13 @@ local Prescanning = function ()
     Nodos = 0,
     Error = "",
   }
-  local IPv6PRefijoUsuario = stdnse.get_script_args "itsismx-subnet"
+  local IPv6PRefijoUsuario = stdnse.get_script_args "targets-ipv6-recon-subnet"
   local IPv6PRefijoScripts = nmap.registry.itsismx.PrefixesKnown
   local TablaPalabras, sError, IPv6refijosTotales = {}, "", {}
   local PrefixAux, Prefijo, Direccion
   local Hosts, Nodo, Indice = 0
-  local User_Segs, User_Right = stdnse.get_script_args("itsismx-wordis.nsegments",
-                                                       "itsismx-wordis.fillright")
+  local User_Segs, User_Right = stdnse.get_script_args("targets-ipv6-recon-wordis.nsegments",
+                                                       "targets-ipv6-recon-wordis.fillright")
 
   -- First we get the info from known prefixes because we need those Prefixes
   stdnse.print_verbose(2, SCRIPT_NAME .. ": Begining the Pre-scanning work... ")
@@ -219,7 +219,7 @@ local Prescanning = function ()
   -- We pass all the prefixes to one single table (health for the eyes)
   if IPv6PRefijoUsuario == nil and IPv6PRefijoScripts == nil then
     tSalida.Error = "There is not IPv6 subnets to try to scan!. You can run a" .. 
-    " script for discovering or adding your own" .. " with the arg: itsismx-subnet."
+    " script for discovering or adding your own" .. " with the arg: targets-ipv6-recon-subnet."
     return bSalida, tSalida
   end
 
@@ -302,7 +302,7 @@ function action ()
   -- The action is divided in two parts: Pre-scanning and host scanning.
   -- The first choice the tentative hosts to scan and the second only
   -- confirm which are truly up.
-
+  
   bExito, tSalida = Prescanning()
 
   -- Now we adapt the exit to tOutput and add the hosts to the target!

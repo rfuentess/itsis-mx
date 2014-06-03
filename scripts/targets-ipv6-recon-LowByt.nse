@@ -3,7 +3,7 @@ local nmap = require "nmap"
 local stdnse = require "stdnse"
 local table = require "table"
 local target = require "target"
-local itsismx = require "itsismx"
+local itsismx = require "targets-ipv6-recon"
 
 description = [[
  Explore the network trying to find IPv6 Nodes using low-bytes. 
@@ -27,32 +27,32 @@ description = [[
 
 ---
 -- @usage
--- nmap -6 --script itsismx-LowByt --script-args newtargets,itsismx-subnet={2001:db8:c0ca:1::/64}
+-- nmap -6 --script targets-ipv6-recon-LowByt --script-args newtargets,targets-ipv6-recon-subnet={2001:db8:c0ca:1::/64}
 --
 -- @output
 -- Pre-scan script results:
--- | itsismx-LowByt:
--- |_  itsismx-LowByt.prerule:  Were added 256 nodes to the scan
+-- | targets-ipv6-recon-LowByt:
+-- |_  targets-ipv6-recon-LowByt.prerule:  Were added 256 nodes to the scan
 -- Nmap scan report for Device (2001:db8:c0ca:1::a)
 -- Host is up.
 
 
 -- @args newtargets            MANDATORY Need for the host-scanning to success
 
--- @args itsismx-subnet        (Optional) IT's table/single IPv6 address with
+-- @args targets-ipv6-recon-subnet        (Optional) IT's table/single IPv6 address with
 --                                prefix(Ex. 2001:db8:c0ca::/48 or
 --                                { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 })
 
--- @args itsismx-lowbyt.wseg   (Optional) Number of number/bits to use on the 
+-- @args targets-ipv6-recon-lowbyt.wseg   (Optional) Number of number/bits to use on the 
 --                             WWWW segment
 
--- @args itsismx-lowbyt.wdec   (Optional) false (Default) the WWWW segment is treated
+-- @args targets-ipv6-recon-lowbyt.wdec   (Optional) false (Default) the WWWW segment is treated
 --                              as decimal number instead of hexadecimal.
 
--- @args itsismx-subnet.useg   (Optional) Number of number/bits to use on the
+-- @args targets-ipv6-recon-subnet.useg   (Optional) Number of number/bits to use on the
 --                             UUUU segment
 
--- @args itsismx-subnet.udec   (Optional) false (Default) the WWWW segment is treated
+-- @args targets-ipv6-recon-subnet.udec   (Optional) false (Default) the WWWW segment is treated
 --                              as HEXAdecimal number instead of decimal.
 
 
@@ -72,7 +72,7 @@ categories = {
 }
 
 dependencies = {
-  "itsismx-dhcpv6",
+  "targets-ipv6-recon-dhcpv6",
 }
 
 
@@ -269,14 +269,14 @@ end
 -- @return Number    Total number of nodes added to the host phase scan.
 local PreScanning = function ()
 
-  local IPv6PRefijoUsuario = stdnse.get_script_args "itsismx-subnet"
+  local IPv6PRefijoUsuario = stdnse.get_script_args "targets-ipv6-recon-subnet"
   local IPv6PRefijoScripts = nmap.registry.itsismx.PrefixesKnown
 
-  local WSegmento = stdnse.get_script_args "itsismx-lowbyt.wseg"
-  local WDec = stdnse.get_script_args "itsismx-lowbyt.wdec"
+  local WSegmento = stdnse.get_script_args "targets-ipv6-recon-lowbyt.wseg"
+  local WDec = stdnse.get_script_args "targets-ipv6-recon-lowbyt.wdec"
 
-  local USegment = stdnse.get_script_args "itsismx-subnet.useg"
-  local UDec = stdnse.get_script_args "itsismx-subnet.udec"
+  local USegment = stdnse.get_script_args "targets-ipv6-recon-subnet.useg"
+  local UDec = stdnse.get_script_args "targets-ipv6-recon-subnet.udec"
 
   local Subredes, PrefixAux = {}
   local Direccion, Prefijo
@@ -292,7 +292,7 @@ local PreScanning = function ()
   -- We create a unique table from IPv6PRefijo(Usuario, Scripts)
   if IPv6PRefijoUsuario == nil and IPv6PRefijoScripts == nil then
     tSalida.Error = "There is not IPv6 subnets to try to scan!. You can run a" ..
-    " script for discovering or adding your own with the arg: itsismx-subnet."
+    " script for discovering or adding your own with the arg: targets-ipv6-recon-subnet."
     return false, tSalida
   end
 
@@ -326,7 +326,7 @@ local PreScanning = function ()
     if WSegmento < 0 then
       -- NOPE!
       WSegmento = nil
-      tSalida.Error = tSalida.Error .. "\n the variable itsismx-lowbyt.wseg" ..
+      tSalida.Error = tSalida.Error .. "\n the variable targets-ipv6-recon-lowbyt.wseg" ..
                                       " has been ignored as have negative value"
     end
   end
@@ -335,7 +335,7 @@ local PreScanning = function ()
     if USegment < 0 then
       -- NOPE!
       USegment = nil
-      tSalida.Error = tSalida.Error .. "\n the variable itsismx-lowbyt.useg" ..
+      tSalida.Error = tSalida.Error .. "\n the variable targets-ipv6-recon-lowbyt.useg" ..
                                        " has been ignored as have negative value"
     end
   end
@@ -385,6 +385,7 @@ end
 
 function action ()
 
+  
   --Vars for created the final report
   local tOutput = stdnse.output_table()
   local bExito, tSalida = false, {
@@ -402,6 +403,8 @@ function action ()
   -- Adapt the exit to tOutput
   tOutput.warning = tSalida.Error
 
+  
+  
   if tSalida.Nodos > 0 then
     -- --Final report of the Debug Lvl of Prescanning
     stdnse.print_verbose(2, SCRIPT_NAME ..

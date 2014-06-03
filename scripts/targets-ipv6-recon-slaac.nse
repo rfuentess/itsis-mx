@@ -2,7 +2,7 @@ local ipOps = require "ipOps"
 local nmap = require "nmap"
 local stdnse = require "stdnse"
 local target = require "target"
-local itsismx = require "itsismx"
+local itsismx = require "targets-ipv6-recon"
 local datafiles = require "datafiles"
 local bin = require "bin"
 local table = require "table"
@@ -26,12 +26,12 @@ description = [[
 
 ---
 -- @usage
--- nmap -6  -sL --script itsismx-slaac --script-args newtargets,itsismx-subnet={2001:db8:c0ca::/64},itsismx-slaac.nbits=3
+-- nmap -6  -sL --script targets-ipv6-recon-slaac --script-args newtargets,targets-ipv6-recon-subnet={2001:db8:c0ca::/64},targets-ipv6-recon-slaac.nbits=3
 
 --@output
 -- Starting Nmap 6.40 ( http://nmap.org ) at 2014-05-06 22:44 Romance Daylight Time
 -- Pre-scan script results:
--- | itsismx-slaac:
+-- | targets-ipv6-recon-slaac:
 -- |_  Were added 9 nodes to the host scan phase
 -- Nmap scan report for 2001:db8:c0ca:0:221:70ff:fe87:170f
 -- Nmap scan report for 2001:db8:c0ca:0:221:70ff:fe3c:2079
@@ -47,7 +47,7 @@ description = [[
 
 -- @args newtargets             MANDATORY  Need for the host-scanning to success
 
--- @args itsismx-slaac.vendors  (Optional) String/Table The user can provided
+-- @args targets-ipv6-recon-slaac.vendors  (Optional) String/Table The user can provided
 --                              companies names (Apple, Dell, HP, etc.)
 --                              which have a valid register for a OUI.  The user
 --                              can too add a specific OUI (5855CA, 6C9B02, 0CD292,
@@ -55,7 +55,7 @@ description = [[
 --                              reduce the search. If the vms argument isn’t provided
 --                              the default value is “002170” otherwise will be empty.
 
--- @args itsismx-slaac.vms    (Optional) If added will search SLAACs based on well
+-- @args targets-ipv6-recon-slaac.vms    (Optional) If added will search SLAACs based on well
 --                             known Virtual MAchines technologies, the user can add
 --                             those arguments:
 --  (DEFAULT) : Will search for VMware, Virtual Box, Paralalles,Virtual PC and QEMU VM
@@ -71,38 +71,38 @@ description = [[
 --   "WPVML"  :  Equivalent to the default option.
 --   pVpD"    :  Equivalent to "P" ("P" override the others two)
 
--- @args itsismx-slaac.nbits     (Optional)  Number of 1-24. This indicate how many
+-- @args targets-ipv6-recon-slaac.nbits     (Optional)  Number of 1-24. This indicate how many
 --                               bits to calculate or what is the same: How much host
 --                               to calculate (2^nbits).  By default is 11.
 
--- @args itsismx-slaac.vms-nbits (Optional)  Number of 1-16. This indicate how many
+-- @args targets-ipv6-recon-slaac.vms-nbits (Optional)  Number of 1-16. This indicate how many
 --                                bits to calculate or what is the same: How much host
 --                                to calculate (2^nbits).  By default is 2.
 
--- @args itsismx-slaac.compute   (Optional) String will be the way to compute the last
+-- @args targets-ipv6-recon-slaac.compute   (Optional) String will be the way to compute the last
 --                               24 bits.
 --               (Default) random  - Will calculate random address. Don't use if you
 --                                   plan to sweep more than 20 bits (even less).
 --                         brute   - Will make a full sweep of the first IPv6 address
 --                                   to the last of the bits provided.
 
--- @args itsismx-slaac.vmipv4    (Optional) Table/String IPv4 address used for calcu-
+-- @args targets-ipv6-recon-slaac.vmipv4    (Optional) Table/String IPv4 address used for calcu-
 --                               late VMware VM servers. The user can provided  IPv4
 --                               candidates believed to be the VMware Host, saving
 --                               time and resources for the script.
 
--- @args itsismx-slaac.knownbits (Optional) String. Binary values used for calculate
+-- @args targets-ipv6-recon-slaac.knownbits (Optional) String. Binary values used for calculate
 --                                VMware VM servers. When the user do not know
 --                                tentative IPv4 address of the VMware host but he
 --                                assume to know some part of the last 16 bits of the
 --                                IPv6 address (maybe from the sub-networks scheme)
 --                                 he can add them as binary value.
 
--- @args itsismx-subnet      It's table/single  IPv6 address with prefix
+-- @args targets-ipv6-recon-subnet      It's table/single  IPv6 address with prefix
 --                           (Ex. 2001:db8:c0ca::/48 or
 --                            { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 } )
 
--- @args itsismx-IPv6ExMechanism (Optional) The script can work the address as string
+-- @args targets-ipv6-recon-IPv6ExMechanism (Optional) The script can work the address as string
 --                                or 4 integers (32 bits) for mathematical operations.
 --                                Possible values:
 --           "number" (Default) - 4 Numbers of 32 bits (Mathematical operations)
@@ -126,7 +126,7 @@ categories = {
 }
 
 dependencies = {
-  "itsismx-dhcpv6",
+  "targets-ipv6-recon-dhcpv6",
 }
 
 ---
@@ -141,8 +141,8 @@ dependencies = {
 local Brute_Range = function (IPv6Base, nBits)
   local TheLast, TheNext, err, bool
   local Prefix, iTotal = 0, 0
-  -- This can be affected by itsismx-IPv6ExMechanism
-  local IPv6ExMechanism = stdnse.get_script_args "itsismx-IPv6ExMechanism"
+  -- This can be affected by targets-ipv6-recon-IPv6ExMechanism
+  local IPv6ExMechanism = stdnse.get_script_args "targets-ipv6-recon-IPv6ExMechanism"
 
   -- nBits with brute force mean how many samples we are to take, this will impact
   -- on the Prefix
@@ -289,7 +289,7 @@ local Vmware_Range_000C29WellKnown = function (IPv6Base, sHexadecimal,
   local hosts = {}
   local bool, err
   local iTotal = 0
-  local SaveMemory = stdnse.get_script_args "itsismx-SaveMemory"
+  local SaveMemory = stdnse.get_script_args "targets-ipv6-recon-SaveMemory"
   for _, Candidato in ipairs(IPv4Candidatos) do
 
     -- For each candidate we retrieve the last 16 bits.
@@ -377,9 +377,9 @@ end
 local Vmware_Range_000C29 = function (IPv6Base, nBits, Metodo)
   local hosts, sError = 0, nil
   local IPv4Candidatos, Num_Aleatorios, iC, iAux = {}, {}, 0
-  local IPv4Argumentos, BitsKnown = stdnse.get_script_args("itsismx-slaac.vmipv4",
-                                                           "itsismx-slaac.knownbits")
-  local IPv6ExMechanism = stdnse.get_script_args "itsismx-IPv6ExMechanism"
+  local IPv4Argumentos, BitsKnown = stdnse.get_script_args("targets-ipv6-recon-slaac.vmipv4",
+                                                           "targets-ipv6-recon-slaac.knownbits")
+  local IPv6ExMechanism = stdnse.get_script_args "targets-ipv6-recon-IPv6ExMechanism"
   local TotalMuestras, Wellknown, RangoAleatorio
   local Segmentos, Candidato, IPv6Prefix, IPv6Candidato
   local bool, err, bBool
@@ -426,7 +426,7 @@ local Vmware_Range_000C29 = function (IPv6Base, nBits, Metodo)
   --
   -- Tip:Because this is special, we check again the global registry otherwise
   -- nBits will read with 11 instead of nil.
-  local nBits = stdnse.get_script_args "itsismx-slaac.vms-nbits"
+  local nBits = stdnse.get_script_args "targets-ipv6-recon-slaac.vms-nbits"
   if nBits == nil then
     nBits = 2
   elseif tonumber(nBits) > 16 then
@@ -669,8 +669,8 @@ local getSlaacCandidates = function (IPv6Prefix, HighPart)
 
   local hosts, sError, aux = 0, ""
   local _, OUI, hexadecimal, bitsAlto
-  local Metodo, NumBits = stdnse.get_script_args("itsismx-slaac.compute",
-                                                 "itsismx-slaac.nbits")
+  local Metodo, NumBits = stdnse.get_script_args("targets-ipv6-recon-slaac.compute",
+                                                 "targets-ipv6-recon-slaac.nbits")
   local IPv6Base, IPv6Segmentos
   local FinalHost = 0
 
@@ -890,9 +890,9 @@ local Prescanning = function ()
     Nodos = 0,
     Error = "",
   }
-  local MacUsers, IPv6User, VM = stdnse.get_script_args("itsismx-slaac.vendors",
-                                                        "itsismx-subnet",
-                                                        "itsismx-slaac.vms")
+  local MacUsers, IPv6User, VM = stdnse.get_script_args("targets-ipv6-recon-slaac.vendors",
+                                                        "targets-ipv6-recon-subnet",
+                                                        "targets-ipv6-recon-slaac.vms")
   local IPv6Knowns = nmap.registry.itsismx.PrefixesKnown
   local PrefixHigh, IPv6Total = {}, {}
   local IPv6_Add, IPv6_Prefix
@@ -1001,7 +1001,7 @@ local Prescanning = function ()
   if IPv6User == nil and IPv6Knowns == nil then
     tSalida.Error = "There is not IPv6 subnets to try to scan!. You can run a" ..
                     " script for discovering or adding your own with the arg:" ..
-                    " itsismx-subnet."
+                    " targets-ipv6-recon-subnet."
     return bSalida, tSalida
   end
 
