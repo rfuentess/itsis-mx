@@ -198,7 +198,7 @@ local Prescanning = function ()
     Error = "",
   }
   local IPv6PRefijoUsuario = stdnse.get_script_args "targets-ipv6-recon-subnet"
-  local IPv6PRefijoScripts = nmap.registry.itsismx.PrefixesKnown
+  local IPv6PRefijoScripts = itsismx.Registro_Global_Leer("PrefixesKnown")
   local TablaPalabras, sError, IPv6refijosTotales = {}, "", {}
   local PrefixAux, Prefijo, Direccion
   local Hosts, Nodo, Indice = 0
@@ -297,7 +297,7 @@ function action ()
     Error = "",
   }
 
-  itsismx.Registro_Global_Inicializar "wordis" -- Prepare everything!
+ -- itsismx.Registro_Global_Inicializar "wordis" -- Prepare everything!
 
   -- The action is divided in two parts: Pre-scanning and host scanning.
   -- The first choice the tentative hosts to scan and the second only

@@ -193,7 +193,8 @@ local Prescanning = function ()
   local IPv6Host, sError, Grantotal = nil, nil, 0
   local IPv4Subnets, IPv6User = stdnse.get_script_args("targets-ipv6-recon-Map4t6.IPv4Hosts",
                                                        "targets-ipv6-recon-subnet")
-  local IPv6Knowns = nmap.registry.itsismx.PrefixesKnown
+  local IPv6Knowns = itsismx.Registro_Global_Leer("PrefixesKnown")
+  
   local iIndex
 
 
@@ -324,7 +325,7 @@ function action ()
   local Nodes = {} -- Is a Auxiliar
   tOutput.Nodes = {}
   
-  itsismx.Registro_Global_Inicializar "Map4t6" -- We prepare our work!
+--  itsismx.Registro_Global_Inicializar "Map4t6" -- We prepare our work!
 
   -- The aciton is divided in two parts: Pre-scanning and host scanning.
   if SCRIPT_TYPE == "prerule" then

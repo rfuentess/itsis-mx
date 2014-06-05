@@ -270,7 +270,7 @@ end
 local PreScanning = function ()
 
   local IPv6PRefijoUsuario = stdnse.get_script_args "targets-ipv6-recon-subnet"
-  local IPv6PRefijoScripts = nmap.registry.itsismx.PrefixesKnown
+  local IPv6PRefijoScripts = itsismx.Registro_Global_Leer("PrefixesKnown")
 
   local WSegmento = stdnse.get_script_args "targets-ipv6-recon-lowbyt.wseg"
   local WDec = stdnse.get_script_args "targets-ipv6-recon-lowbyt.wdec"
@@ -396,7 +396,7 @@ function action ()
   tOutput.Nodes = 0
 
   -- We get the prefix ready!
-  itsismx.Registro_Global_Inicializar "LowByt"
+--  itsismx.Registro_Global_Inicializar "LowByt"
 
   bExito, tSalida = PreScanning()
 

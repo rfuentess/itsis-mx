@@ -447,7 +447,7 @@ end
 ---
 -- Receive X:X:X:X::/YY and return two separated fields: IPv6 ADdress and Prefix.
 --   
---  The lesser prefix that return it's 48 because before that is IANA Field.
+--  The lesser prefix that return it's 48 because before usually is IANA Field.
 -- @param  IPv6PRefix  A String IPv6 address with Prefix: X:X:X:X::/YY
 -- @return String  Formatted full IPv6 ( X:X:X:X:: )
 -- @return Number  Prefix number (0-128)
@@ -492,22 +492,38 @@ end
 end
 
 ---
+-- This function will read a register from nmap.registry.itsismx 
+-- 
+-- Originally, all the scripts passed  information to a final
+-- post-script and as result there were 5 registers  to read. 
+-- Now only DHCPv6 generate a global register accessed by everyone.
+-- @param String with the prefix for the global registry to check.
+-- @return The element on the registry or NIL 
+  Registro_Global_Leer = function ( Registro )
+ 
+   local Global = nmap.registry.itsismx
+   -- If no script has initialized the global, then nothing more 
+   -- to do.
+   if Global == nil then
+	return nil
+   else 
+    return Global[Registro]
+  end
+end
+---
 -- Convert Decimal number to Hexadecimal. 
 --
--- Taken from:
--- http://snipplr.com/view/13086/
+-- Originally was using other people code,
+-- And one day... the casting was so obvious I did without notice.
 -- @param   Number    A Lua number format
 -- @return  String    String representing Hexadecimal value 
 function DecToHex(Number)
-    local hexstr = '0123456789abcdef'
-    local s = ''
-    while Number > 0 do
-        local mod = math.fmod(Number, 16)
-        s = string.sub(hexstr, mod+1, mod+1) .. s
-        Number = math.floor(Number / 16)
-    end
-    if s == '' then s = '0' end
-    return s
+	--we need to cast the dec to hex and then convert the
+	if not( type(Number)) == "number" then
+		return "0"
+	else
+		return tonumber(tostring(Number), 16)
+	end
 end
 
 ---

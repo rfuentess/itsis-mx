@@ -893,7 +893,7 @@ local Prescanning = function ()
   local MacUsers, IPv6User, VM = stdnse.get_script_args("targets-ipv6-recon-slaac.vendors",
                                                         "targets-ipv6-recon-subnet",
                                                         "targets-ipv6-recon-slaac.vms")
-  local IPv6Knowns = nmap.registry.itsismx.PrefixesKnown
+  local IPv6Knowns = itsismx.Registro_Global_Leer("PrefixesKnown")
   local PrefixHigh, IPv6Total = {}, {}
   local IPv6_Add, IPv6_Prefix
   -- Actu
@@ -1075,7 +1075,7 @@ function action (host)
     Error = "",
   }
   local bHostsPre, sHostsPre
-  itsismx.Registro_Global_Inicializar "sbkmac" -- Prepare everything!
+--  itsismx.Registro_Global_Inicializar "sbkmac" -- Prepare everything!
 
   bExito, tSalida = Prescanning()
   -- Now we adapt the exit to tOutput and add the hosts to the target!
