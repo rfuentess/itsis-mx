@@ -8,21 +8,19 @@ local itsismx = require "targets-ipv6-recon"
 description = [[
  Explore the network trying to find IPv6 Nodes using low-bytes. 
  
- The script run at pre-scanning phase and script phase (The first for create 
- tentative low-bytes address and the second for put the living nodes on the list 
- of discovered nodes).
+ The script run at pre-scanning phase and script phase (The first for create
+ tentative low-bytes address and the second for put the living nodes on the 
+ list of discovered nodes).
  
  The new version search by default on the range X:X:X:X::WWWW:UUUU/YY.
- Where WWWW by defualt is treated as decimal number (0000 - 9999) instead of 
- hexadecimal values.
- A default search will search by nodes as: 
+ Where WWWW by defualt is treated as decimal number (0000 - 9999) instead of
+ hexadecimal values. A default search will search by nodes as: 
   2001:db8:bee::0:0 - 2001:db8:bee::0:100
   2001:db8:bee::1:1 - 2001:db8:bee::1:100
   .
   .
   .
   2001:db8:bee::1000:1 - 2001:db8:bee::1000:100
-  
 ]]
 
 ---
@@ -37,28 +35,31 @@ description = [[
 -- Host is up.
 
 
--- @args newtargets            MANDATORY Need for the host-scanning to success
+-- @args newtargets      MANDATORY Need for the host-scanning to success.
 
--- @args targets-ipv6-recon-subnet        (Optional) IT's table/single IPv6 address with
---                                prefix(Ex. 2001:db8:c0ca::/48 or
---                                { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 })
+-- @args targets-ipv6-recon-subnet (Optional) IT's table/single IPv6 
+--                                 address with prefix(Ex. 
+--                                 2001:db8:c0ca::/48 or 
+--                                 { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 })
 
--- @args targets-ipv6-recon-lowbyt.wseg   (Optional) Number of number/bits to use on the 
---                             WWWW segment
+-- @args targets-ipv6-recon-lowbyt.wseg (Optional) Number of number/bits to use
+--                                      on the WWWW segment                          
 
--- @args targets-ipv6-recon-lowbyt.wdec   (Optional) false (Default) the WWWW segment is treated
---                              as decimal number instead of hexadecimal.
+-- @args targets-ipv6-recon-lowbyt.wdec (Optional) false (Default) the WWWW
+--                                      segment is treated as decimal number
+--                                      instead of hexadecimal.
 
--- @args targets-ipv6-recon-subnet.useg   (Optional) Number of number/bits to use on the
---                             UUUU segment
+-- @args targets-ipv6-recon-subnet.useg (Optional) Number of number/bits to use
+--                                      on the UUUU segment
 
--- @args targets-ipv6-recon-subnet.udec   (Optional) false (Default) the WWWW segment is treated
---                              as HEXAdecimal number instead of decimal.
+-- @args targets-ipv6-recon-subnet.udec (Optional) false (Default) the WWWW
+--                                      segment is treated as HEXAdecimal
+--                                      number instead of decimal.
 
 
 --
 -- Version 2.0
--- Updated 20/05/2014 - V2.0 Major upgrade on the script (X:X:X:X::WWWW:UUUU/YY)
+-- Updated 20/05/2014 - V2.0 Major upgrade on script (X:X:X:X::WWWW:UUUU/YY)
 -- Updated 06/05/2014 - V1.2 Minor corrections and standardization.
 -- Update 27/03/2013  - v 1.0
 -- Created 26/02/2013 - v0.1  Created by Raul Fuentes <ra.fuentess.sam+nmap@gmail.com>
@@ -105,19 +106,20 @@ local Create_LowBytes = function (SubRed, nHost, Dec)
 
     -- Now we re-cast the table to a IPv6 address
     -- uh... nasty ipOPs which don't have that function!!!
-    IPv6Add = itsismx.DecToHex(SubRed[1]) .. ":" .. itsismx.DecToHex(SubRed[2]) ..
-              ":" .. itsismx.DecToHex(SubRed[3]) .. ":" ..
-              itsismx.DecToHex(SubRed[4]) .. ":" .. itsismx.DecToHex(SubRed[5]) ..
-              ":" .. itsismx.DecToHex(SubRed[6]) .. ":" ..
-              itsismx.DecToHex(SubRed[7]) .. ":" .. itsismx.DecToHex(SubRed[8])
+    IPv6Add = itsismx.DecToHex(SubRed[1]) .. ":" .. 
+    itsismx.DecToHex(SubRed[2]) .. ":" .. itsismx.DecToHex(SubRed[3]) .. ":" ..
+    itsismx.DecToHex(SubRed[4]) .. ":" .. itsismx.DecToHex(SubRed[5]) .. ":" ..
+    itsismx.DecToHex(SubRed[6]) .. ":" .. itsismx.DecToHex(SubRed[7]) .. ":" ..
+    itsismx.DecToHex(SubRed[8])
 
-    stdnse.print_verbose(5, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. "Adding Host" ..
-                                                                          IPv6Add)
+    stdnse.print_verbose(5, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..
+                                                    "Adding Host" .. IPv6Add)
 
     -- Add the host to scan phase, look for any problem
     bool, sErr = target.add(IPv6Add)
     if bool == false then
-      stdnse.print_verbose(5, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. "Error" .. sErr)
+      stdnse.print_verbose(5, SCRIPT_NAME .. "." .. SCRIPT_TYPE .. "Error" ..
+                                                                       	 sErr)
 
 
       bExito = false
@@ -134,11 +136,11 @@ end
 ---
 -- Will generate the last two segments for the Subnetwork.
 --
--- Remember, WE are to scan the range X:X:X:X::WWWW:00UU/YY
--- where by defualt WWWW it's going to be 0000 to 1000 but seen as decimal values
--- (a,b,c,d and F will not be displayed) meanwhile the UUUU will be seen as
--- hexadecimal values.
--- Defualt values are:  2560,00 address (100 x 256)
+-- Remember, We are to scan the range X:X:X:X::WWWW:00UU/YY
+-- where by default WWWW it's going to be 0000 to 1000 but seen as decimal
+-- values (a,b,c,d and F will not be displayed) meanwhile the UUUU will be
+-- seen as hexadecimal values.
+-- Default values are:  2560,00 address (100 x 256)
 -- @param  Subnet  Table with the 8 segments of the IPv6 Addresses
 -- @param  iWseg  (Optional) Total of WWWW to use on the segment.
 -- @param  bWseg   (Optional) We see iWseg as decimal (false) or hexadecimal?
@@ -159,13 +161,12 @@ local Crear_2Segmentos = function (Subnet, Prefijo, iWseg, bWseg, iUseg, bUseg)
     iUseg = 100
   end
 
-  -- We placed the default values, however we are working with subnet with custom
-  -- prefix. If those prefix are higher than the possible values, then we need to
-  -- adjust. We modify the last 32 bits (half here, the other half later)
+  -- We placed the default values, however we are working with subnet with
+  -- custom prefix. If those prefix are higher than the possible values, 
+  -- then we need to adjust. 
+  -- We modify the last 32 bits (half here, the other half later)
   if Prefijo > 112 then
-    -- We ignore the 7-segment
-
-    -- We pass to work the 8-segment
+    -- We ignore the 7-segment and We pass to work the 8-segment
     iWseg = 0
 
     -- And there is no doubt, we need to check how affected is the 8-segment
@@ -237,8 +238,8 @@ local Crear_2Segmentos = function (Subnet, Prefijo, iWseg, bWseg, iUseg, bUseg)
   end -- The 7-segment is untouched so, normal operation
 
 
-  -- The booleans don't care as nil is taken as false (though bUseg will always be
-  -- negated for have easy time with our code.
+  -- The booleans don't care as nil is taken as false (though bUseg will always
+  --  be negated for have easy time with our code.
 
   repeat
 
@@ -263,8 +264,8 @@ local Crear_2Segmentos = function (Subnet, Prefijo, iWseg, bWseg, iUseg, bUseg)
 end
 
 ---
--- This is the core of the script. Is here where we are adding groups of host by
--- each prefix
+-- This is the core of the script. Is here where we are adding groups of host
+-- by each prefix.
 -- @return Boolean   TRUE  If there were no problem, otherwise FALSE.
 -- @return Number    Total number of nodes added to the host phase scan.
 local PreScanning = function ()
@@ -287,12 +288,14 @@ local PreScanning = function ()
     Nodos = 0,
     Error = "",
   }
-  stdnse.print_verbose(2, SCRIPT_NAME .. ": Beginning the Pre-scanning work...")
+  
+  stdnse.print_verbose(2, SCRIPT_NAME .. ": Beginning the work.")
 
   -- We create a unique table from IPv6PRefijo(Usuario, Scripts)
   if IPv6PRefijoUsuario == nil and IPv6PRefijoScripts == nil then
-    tSalida.Error = "There is not IPv6 subnets to try to scan!. You can run a" ..
-    " script for discovering or adding your own with the arg: targets-ipv6-recon-subnet."
+    tSalida.Error = "There is not IPv6 subnets to try to scan!. You can " ..
+    "run a script for discovering or adding your own with the arg: " .. 
+    "targets-ipv6-recon-subnet."
     return false, tSalida
   end
 
@@ -311,7 +314,8 @@ local PreScanning = function ()
       table.insert(Subredes, IPv6PRefijoUsuario)
     elseif type(IPv6PRefijoUsuario) == "table" then
       stdnse.print_verbose(2, SCRIPT_NAME ..
-         ":  Number of Prefixes Known from other sources: " .. #IPv6PRefijoUsuario)
+         ":  Number of Prefixes Known from other sources: " ..
+         #IPv6PRefijoUsuario)
       for _, PrefixAux in ipairs(IPv6PRefijoUsuario) do
         table.insert(Subredes, PrefixAux)
       end
@@ -326,8 +330,8 @@ local PreScanning = function ()
     if WSegmento < 0 then
       -- NOPE!
       WSegmento = nil
-      tSalida.Error = tSalida.Error .. "\n the variable targets-ipv6-recon-lowbyt.wseg" ..
-                                      " has been ignored as have negative value"
+      tSalida.Error = tSalida.Error .. "\n the variable " ..
+      "targets-ipv6-recon-lowbyt.wseg has been ignored as have negative value."
     end
   end
   if USegment ~= nil then
@@ -335,8 +339,9 @@ local PreScanning = function ()
     if USegment < 0 then
       -- NOPE!
       USegment = nil
-      tSalida.Error = tSalida.Error .. "\n the variable targets-ipv6-recon-lowbyt.useg" ..
-                                       " has been ignored as have negative value"
+      tSalida.Error = tSalida.Error .. 
+                          "\n the variable targets-ipv6-recon-lowbyt.useg" ..
+                          " has been ignored as have negative value"
     end
   end
 
@@ -349,7 +354,7 @@ local PreScanning = function ()
     if IPv6Segmentada == nil then
       bSalida = false
       tSalida.sError = tSalida.sError .. "\n The prefix " .. Direccion ..
-                                                 "was provided erroneous: " .. sErr
+                                            "was provided erroneous: " .. sErr
     else
       bAux, iAux = Crear_2Segmentos(IPv6Segmentada, Prefijo, WSegmento, WDec,
                                                                 USegment, UDec)
@@ -357,7 +362,8 @@ local PreScanning = function ()
       if bAux ~= true then
         bSalida = false
         tSalida.sError = tSalida.sError ..
-        "\n Was not possible to one or more of the host for the prefix " .. Direccion
+        "\n Was not possible to one or more of the host for the prefix " ..
+        Direccion
       end
       tSalida.Nodos = iAux + tSalida.Nodos
     end
@@ -375,8 +381,9 @@ function prerule ()
   end
 
   if stdnse.get_script_args 'newtargets' == nil then
-    stdnse.print_verbose(2, "%s Will only work on pre-scanning. The argument" ..
-    " newtargets is needed for the host-scanning to work.", SCRIPT_NAME)
+    stdnse.print_verbose(2, SCRIPT_NAME .. " Will only work on " ..
+    "pre-scanning. The argument newtargets is needed for the host-scanning" ..
+	" to work.")
   end
 
   return true
@@ -411,12 +418,13 @@ function action ()
     ": Successful Low-Bytes to IPv6 added to the scan: " .. tSalida.Nodos)
     
     table.insert(tOutput, "Successful Low-Bytes to IPv6 added to the scan: " ..
-                                                                    tSalida.Nodos)
+                                                                 tSalida.Nodos)
 
     tOutput.Nodes = tSalida.Nodos
   else
     stdnse.print_verbose(2, SCRIPT_NAME ..
-    ": Was unable to add nodes to the scan list due this error: " .. tSalida.Error)
+    ": Was unable to add nodes to the scan list due this error: " ..
+                                                          tSalida.Error)
   end
 
   if tSalida.Error ~= "" then

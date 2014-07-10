@@ -1,15 +1,14 @@
 # $Id: targets-ipv6-recon-words-known 2013-04-26 rfuentess $ 
-# For now the words come from "common" password on dictionary attacks  
-# and from other texts.
-# The way to look this file is
+# For now the words come from "common" password on dictionary attacks
+# and from other texts. The way to look this file is:
 # 
 # Number of segments |  Word |  word in binary
 #
-# This is for give a easy time  choosing which one to pick and give a easy time 
-# assembling the IPv6 address on binary.
+# This is for give a easy time  choosing which one to pick and give a easy
+# time assembling the IPv6 address on binary.
 #
-#As the user discover EUI-64 format Address is a good idea to place those on this list. 
-# Some basic dictionaries:
+#As the user discover EUI-64 format Address is a good idea to place those on
+#this list. Some basic dictionaries:
 # http://nedbatchelder.com/text/hexwords.html
 #
 1	c0ca			1100000011001010

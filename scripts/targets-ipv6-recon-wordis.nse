@@ -9,13 +9,14 @@ local table = require "table"
 local math = require "math"
 
 description = [[
-  This is the most simple and easier of all the scripts. The objective is to do a 
-  discovery based on dictionary.
+  This is the most simple and easier of all the scripts. The objective is
+  to do a discovery based on dictionary.
   
   For each prefix we discover, we are going to check against known hex-words.
   ( EX. 2001:db8:c0ca::beef )
   
-  P.d. The dictionary still need more entries for this script become very useful. 
+  P.d. The dictionary still need more entries for this script become very
+  useful.  
 ]]
 
 ---
@@ -32,18 +33,20 @@ description = [[
 -- PORT   STATE   SERVICE
 -- 80/tcp unknown http
 
--- @args newtargets          MANDATORY Need for the host-scaning to success
+-- @args newtargets          MANDATORY Need for the host-scaning to success.
 
--- @args targets-ipv6-recon-wordis.nsegments  (Optional) Number  - User can indicate exactly how
---                                  big the word must be (Segments of 16 bits).
+-- @args targets-ipv6-recon-wordis.nsegments  (Optional) Number User can
+--                           indicate exactly how big the word must be on 
+--                           Segments of 16 bits.
 
--- @args targets-ipv6-recon-wordis.fillright  (Optional) With this argument the script will fill
---                                 remaining zeros to the right instead of left
---                                 (2001:db8:c0a:dead:: instead of 2001:db8:c0ca::dead)
+-- @args targets-ipv6-recon-wordis.fillright  (Optional) With this argument
+--                          the script will fill remaining zeros to the right
+--                          instead of left (2001:db8:c0a:dead:: instead of 
+--                          2001:db8:c0ca::dead)
 
--- @args targets-ipv6-recon-subnet           (Optional)  IT's table/single  IPv6 address with
---                                prefix (Ex. 2001:db8:c0ca::/48 or
---                                { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 } )
+-- @args targets-ipv6-recon-subnet           (Optional) table/single IPv6
+--                         address with prefix (Ex. 2001:db8:c0ca::/48 or
+--                         { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 } )
 
 -- Version 1.3
 --  Updated 21/05/2014 - V1.3 Eliminate the host phase.
@@ -75,8 +78,9 @@ dependencies = {
 -- @param   User_Right     Boolean for fill right or left (Default)
 -- @return  Boolean        True if was successful the operation
 -- @return  Number         Total of successfuly nodes added to the scan list.
--- @return  Error          Any error OR problem will be here (Default: "" not nil )
-local CrearRangoHosts = function (Direccion, Prefijo, TablaPalabras, User_Segs, User_Right)
+-- @return  Error          Any error generated, default: "" not nil.
+local CrearRangoHosts = function (Direccion, Prefijo, TablaPalabras,
+                                                       User_Segs, User_Right)
 
   local IPv6Bin, Error = ipOps.ip_to_bin(Direccion)
   local Candidatos, sError = {}, ""
@@ -89,10 +93,9 @@ local CrearRangoHosts = function (Direccion, Prefijo, TablaPalabras, User_Segs, 
     return false, 0, Error
   end
 
-  -- Its simple, we have (128 -  n ) / ( 16 )
-  -- The first part are how many bits are left to hosts portion the Second are the
-  -- size of the segments ( 16 bits). We need to use Ceiling because 4.3 don't have
-  --  sense...
+  -- We have (128 -  n ) / ( 16 )
+  -- The first part are how many bits are left to hosts portion
+  -- The Second part is the size of the segments (16 bits). 
   if User_Segs == nil then
     MaxRangoSegmentos = math.ceil((128 - Prefijo) / 16)
     User_Segs = false
@@ -100,14 +103,15 @@ local CrearRangoHosts = function (Direccion, Prefijo, TablaPalabras, User_Segs, 
     MaxRangoSegmentos = tonumber(User_Segs)
   end
 
-  stdnse.print_verbose(3, SCRIPT_NAME .. ": Will be calculted " .. #TablaPalabras ..
-                            " hosts for the subnet: " .. Direccion .. "/" .. Prefijo)
+  stdnse.print_verbose(3, SCRIPT_NAME .. ": Will be calculted " .. 
+   #TablaPalabras .. " hosts for the subnet: " .. Direccion .. "/" .. Prefijo)
 
   -- Palabras is a table with two elements Segmento & Binario
   for Indice, Palabras in ipairs(TablaPalabras) do
 
-    if ((tonumber(Palabras.Segmento) <= MaxRangoSegmentos) and User_Segs == false) or
-         (User_Segs and (tonumber(Palabras.Segmento) == MaxRangoSegmentos)) then
+    if ((tonumber(Palabras.Segmento) <= MaxRangoSegmentos) and 
+        User_Segs == false) or
+        (User_Segs and (tonumber(Palabras.Segmento) == MaxRangoSegmentos)) then
 
       -- We are going to add binaries values but the question is
       -- whenever must fill with zeros?
@@ -133,8 +137,8 @@ local CrearRangoHosts = function (Direccion, Prefijo, TablaPalabras, User_Segs, 
            iTotal = iTotal + 1
         else
            stdnse.print_verbose(5, SCRIPT_NAME .. "." .. SCRIPT_TYPE ..
-                                  ": Had been a error adding the node " .. Host ..
-                                  " which is: " .. sAux)
+                              ": Had been a error adding the node " .. Host ..
+                              " which is: " .. sAux)
         end
       end
     end
@@ -146,15 +150,15 @@ end
 ---
 -- Parsing process of concatenate each word on the dictionary with subnetworks.
 --
--- (for now is very crude) will search for the file and  return only the binaries
--- numbers (String) that matches with the number of segments we want to use.
--- @return  Table          Table of elements returned (Nil if there was a error )
--- @return  String         Empty if there is no error, otherwise the error message.
+-- (for now is very crude) will search for the file and  return only the
+-- binaries numbers (String) that matches with the number of segments we
+-- want to use. 
+-- @return  Table     Table of elements returned (Nil if there was a error)
+-- @return  String    Empty if there is no error, otherwise the error message.
 local LeerArchivo = function ()
   -- [ "^%s*(%w+)%s+[^#]+" ] = "^%s*%w+%s+([^#]+)" }
-  local bBoolean, Archivo = datafiles.parse_file("nselib/targets-ipv6-recon-words-known", {
-      "^[^#]+%d",
-    })
+  local bBoolean, Archivo = datafiles.parse_file("nselib/targets-ipv6-recon-words-known",
+  {"^[^#]+%d",})
   local index, reg, token
   local Candidatos = {}
   local Registro = {
@@ -202,11 +206,11 @@ local Prescanning = function ()
   local TablaPalabras, sError, IPv6refijosTotales = {}, "", {}
   local PrefixAux, Prefijo, Direccion
   local Hosts, Nodo, Indice = 0
-  local User_Segs, User_Right = stdnse.get_script_args("targets-ipv6-recon-wordis.nsegments",
-                                                       "targets-ipv6-recon-wordis.fillright")
-
+local User_Segs = stdnse.get_script_args "targets-ipv6-recon-wordis.nsegments"
+local User_Right = stdnse.get_script_args "targets-ipv6-recon-wordis.fillright"
+  
   -- First we get the info from known prefixes because we need those Prefixes
-  stdnse.print_verbose(2, SCRIPT_NAME .. ": Begining the Pre-scanning work... ")
+  stdnse.print_verbose(2, SCRIPT_NAME .. ": Beginning the script... ")
 
   -- Second, we read our vital table
   TablaPalabras = LeerArchivo()
@@ -218,8 +222,9 @@ local Prescanning = function ()
 
   -- We pass all the prefixes to one single table (health for the eyes)
   if IPv6PRefijoUsuario == nil and IPv6PRefijoScripts == nil then
-    tSalida.Error = "There is not IPv6 subnets to try to scan!. You can run a" .. 
-    " script for discovering or adding your own" .. " with the arg: targets-ipv6-recon-subnet."
+    tSalida.Error = "There is not IPv6 subnets to try to scan!." .. 
+    " You can run a script for discovering or adding your own" .. 
+	" with the arg: targets-ipv6-recon-subnet."
     return bSalida, tSalida
   end
 
@@ -240,21 +245,21 @@ local Prescanning = function ()
       stdnse.print_verbose(2, SCRIPT_NAME ..
       ": Number of Prefixes Known from other sources: " .. #IPv6PRefijoUsuario)
       for _, PrefixAux in ipairs(IPv6PRefijoUsuario) do
-        table.insert(IPv6refijosTotales, PrefixAux) -- This is healthy for my mind...
+        table.insert(IPv6refijosTotales, PrefixAux)
       end
     end
-
   end
 
   -- We begin to explore all thoses prefixes and retrieve our work here
   for _, PrefixAux in ipairs(IPv6refijosTotales) do
     Direccion, Prefijo = itsismx.Extract_IPv6_Add_Prefix(PrefixAux)
     bSalida, tSalida.Nodos, sError = CrearRangoHosts(Direccion, Prefijo, 
-                                               TablaPalabras, User_Segs, User_Right)
+                                          TablaPalabras, User_Segs, User_Right)
 
     if bSalida ~= true then
       stdnse.print_verbose(2, SCRIPT_NAME ..
-      ": There was a error for the prefix: " .. PrefixAux .. " Message:" .. sError)
+      ": There was a error for the prefix: " .. PrefixAux ..
+      " Message:" .. sError)
     end
 
     if sError ~= "" then
@@ -278,8 +283,9 @@ function prerule ()
   end
 
   if stdnse.get_script_args 'newtargets' == nil then
-    stdnse.print_verbose(2, "%s Will only work on pre-scanning. The argument" ..
-             " newtargets is needed for the host-scanning to work.", SCRIPT_NAME)
+    stdnse.print_verbose(2, SCRIPT_NAME .. " Will only work on " ..
+    "pre-scanning. The argument newtargets is needed for the host-scanning" ..
+	" to work.")
   end
 
   return true
@@ -299,10 +305,6 @@ function action ()
 
  -- itsismx.Registro_Global_Inicializar "wordis" -- Prepare everything!
 
-  -- The action is divided in two parts: Pre-scanning and host scanning.
-  -- The first choice the tentative hosts to scan and the second only
-  -- confirm which are truly up.
-  
   bExito, tSalida = Prescanning()
 
   -- Now we adapt the exit to tOutput and add the hosts to the target!
@@ -310,11 +312,9 @@ function action ()
 
   if bExito then
     if tSalida.Nodos == 0 then
-    stdnse.print_verbose(2, SCRIPT_NAME .. "No nodes were added to scan list!" ..
-    " You can increase verbosity for more information" .. 
+    stdnse.print_verbose(2, SCRIPT_NAME .. "No nodes were added " ..
+    " to scan list! You can increase verbosity for more information" ..
 	" (maybe not newtargets argument?) ")
---    else
---    stdnse.print_verbose(2, SCRIPT_NAME .. "Total nodes added: " .. tSalida.Nodos)
     end
   end
 

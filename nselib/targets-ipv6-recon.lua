@@ -1,5 +1,6 @@
 ---
--- This library implements common tools for all the  NSE scripts of ITSISMX.
+-- This library implements common tools for all the  NSE scripts of:
+-- targets-ipv-6recon (Aka: Itsismx for global registry)
 
 --@author Raul Fuentes <ra.fuentes.sam+nmap@gmail.com>
 --@copyright Same as Nmap--See http://nmap.org/book/man-legal.html
@@ -23,11 +24,10 @@ _ENV = stdnse.module("targets-ipv6-recon", stdnse.seeall)
   There are two  different methods: 
   1 - Strings  representing bits 
   2- 4 numbers of 32 bits
-
-  Originally  were to use classes for those but  had problems creating independently
-  instances of the class (because LUA it's  not a oriented object language) so,
-  the classical approach of functions was used.
   
+  Originally  were to use classes for those but  had problems creating
+  independently instances of the class (because LUA it's  not a oriented 
+  object language) so, the classical approach of functions was used.
 –]]
 
 
@@ -49,7 +49,7 @@ local Bits32_BinToNumber = function ( Mordidas )
   --bits making me  choice a more "pure" way to do it
   Mordidas:reverse() --More easy to my head 
   for iPos=1, 32 ,  1 do 
-    iValor = iValor + tonumber( Mordidas:sub(iPos,iPos) ) * math.pow(2,32 - iPos)
+  iValor = iValor + tonumber( Mordidas:sub(iPos,iPos) ) * math.pow(2,32 - iPos)
   end
   return iValor
 end
@@ -135,9 +135,9 @@ local Sumador =  function (A, B, Cin )
 ---; 
 -- 8-bits Binary adder with Carry. 
 --
--- Actually it's pseudo-bit because got strings and  return strings (Only 1 and 0).
--- It's slower than using real numbers but it's a good option for IPv6. eal numbers but it's a good option for 
--- IPv6.
+-- Actually it's pseudo-bit because got strings and  return strings
+--(Only 1 and 0). Is slower than using real numbers but it's a good option
+-- for IPv6. 
 -- @param  A  A String of 8 bits
 -- @param  B  A String of 8 bits
 -- @param  Cin  A String of 1 bit - Carry In
@@ -180,8 +180,9 @@ end
 ---;
 -- 16-bits Binary adder with Carry. 
 --
--- Actually it's pseudo-bit because got strings and  return strings (Only 1 and 0).
--- It's slower than using real numbers but it's a good option for IPv6. 
+-- Actually it's pseudo-bit because got strings and  return strings
+--(Only 1 and 0). Is slower than using real numbers but it's a good option
+-- for IPv6. 
 -- @param  A  A String of 16 bits
 -- @param  B  A String of 16 bits
 -- @param  Cin  A String of 1 bit - Carry In
@@ -212,8 +213,9 @@ end
 ---;
 -- 32-bits Binary adder with Carry.
 -- 
--- Actually it's pseudo-bit because got strings and  return strings (Only 1 and 0).
--- It's slower than using real numbers but it's a good option for IPv6. 
+-- Actually it's pseudo-bit because got strings and  return strings
+--(Only 1 and 0). Is slower than using real numbers but it's a good option
+-- for IPv6. 
 -- Useful for IPv4 (Thought Nmap can do it better)
 -- @param  A  A String of 32 bits
 -- @param  B  A String of 32 bits
@@ -274,8 +276,9 @@ end
 
 ---;
 -- 128-bits Binary adder with Carry. 
--- Actually it's pseudo-bit because got strings and  return strings (Only 1 and 0).
--- It's slower than using real numbers but it's a good option for IPv6. 
+-- Actually it's pseudo-bit because got strings and  return strings
+--(Only 1 and 0). Is slower than using real numbers but it's a good option
+-- for IPv6. 
 -- Useful for when using the Node Portion of IPv6
 -- @param  A  A String of 128 bits
 -- @param  B  A String of 128 bits
@@ -309,8 +312,8 @@ end
 -- This function will always return the next immediately IPv6 address.
 --  This work only with String format.
 -- @param  IPv6Address  A String IPv6 address X:X:X:X:X:X:X:X
--- @param  Prefix  Optional Prefix. If it-s provided the function will check to do
---          sum with lesser bits (64, 32, 16 or 8)
+-- @param  Prefix  Optional Prefix. If it-s provided the function will check
+--         to do sum with lesser bits (64, 32, 16 or 8)
 -- @returns  String 128 bits of a IPv6 Address
 local GetNext_AddressIPv6_String = function(IPv6Address, Prefix)
 
@@ -341,17 +344,17 @@ local GetNext_AddressIPv6_String = function(IPv6Address, Prefix)
 end
 
 ---; 
--- This function will always return the next immediately    IPv6
+-- This function will always return the next immediately IPv6
 -- address. This work only with a structure of 4 numbers.
 -- @param  IPv6Address  A String IPv6 address  X:X:X:X:X:X:X:X
--- @param  Prefix  Optional Prefix. If it-s provided the function will check to do 
---       sum with lesser bits (64, 32, 16 or 8)
+-- @param  Prefix  Optional Prefix. If its provided the function will 
+--                 check to do sum with lesser bits (64, 32, 16 or 8)
 -- @returns  String 128 bits of a IPv6 Address
 local GetNext_AddressIPv6_4Structure = function(IPv6Address, Prefix)
   local UNO
   local Next, Current
   
-  Current =   { ParteAltaH = 0, ParteAltaL = 0, ParteBajaH = 0, ParteBajaL = 0 }
+  Current = { ParteAltaH = 0, ParteAltaL = 0, ParteBajaH = 0, ParteBajaL = 0 }
   UNO =     { ParteAltaH = 0, ParteAltaL = 0, ParteBajaH = 0, ParteBajaL = 1 }
   
   Current.ParteAltaH =  Bits32_BinToNumber( IPv6Address:sub(1,32)  )
@@ -379,29 +382,27 @@ end
 ---
 -- This function will always return the next immediately IPv6 address.
 -- 
--- We work with 2 very different approach: Strings or Numbers he first make Boolean
--- operations with strings and the second make math with 4 separated numbers.
+-- We work with 2 very different approach: Strings or Numbers he first make 
+-- Boolean operations with strings and the second make math with 4 separated
+-- numbers.
 -- 
--- Note: By default use the 128 bits for adding but if the the prefix its big can be
--- a waste, that is why  there is a option for reduce the number of bits to sum for 
--- the String case. 
+-- Note: By default use the 128 bits for adding but if the the prefix its big
+-- can be a waste, that is why  there is a option for reduce the number of bits
+-- to sum for the String case. 
 -- @param  IPv6Address  A String IPv6 address X:X:X:X:X:X:X:X
--- @param  (Optional) Prefix. If it-s provided the function will check to do sum with 
---         lesser bits(64, 32, 16 or 8) but only work if we are using "String".
--- @param  IPv6_Mech_Operator A string which represent the mechanism for calculating
---         the next IPv6 Address. Values:
+-- @param  (Optional) Prefix. If it-s provided the function will check to do
+--         sum with  lesser bits(64, 32, 16 or 8) but only work if we are
+--         using "String".
+-- @param  IPv6_Mech_Operator A string which represent the mechanism for 
+--         calculating the next IPv6 Address. Values:
 --          string - Use pseudo binary operations 
---          number - Divide the IPv6 in 4 numbers of 32 bits (Mathematical operations)
+--          number - Divide the IPv6 in 4 numbers of 32 bits (Mathematical
+--                   operations)
 --              
 -- @return String Formatted full IPv6 X:X:X:X:X:X:X:X)
  GetNext_AddressIPv6 = function(IPv6Address, Prefix, IPv6_Mech_Operator)
 
-  local Next = "::"
-  -- 64 prefix left 64 bits to search
-  -- 96 Prefix left 32 bits to search
-  -- 112 prefix left 16 bits to search
-  -- 120 prefix left  8 bits to search
-    
+  local Next = "::"   
   --First... Which mechanism?  
   IPv6Address = ipOps.ip_to_bin(IPv6Address)     
   if   IPv6_Mech_Operator == nil then  
@@ -414,8 +415,8 @@ end
   elseif  IPv6_Mech_Operator:lower(IPv6_Mech_Operator) == "number" then  
     
     Next = GetNext_AddressIPv6_4Structure(IPv6Address, Prefix)
-  end  -- For the moment are the only cases, if something come wrong Next i
-       -- s a invalid IPv6 address
+  end  -- For the moment are the only cases, if something come wrong Next
+       -- is a invalid IPv6 address
     
   return ipOps.bin_to_ip(Next)
 end 
@@ -445,7 +446,8 @@ GetNext_AddressIPv4 = function (IPv4ddress)
 end
 
 ---
--- Receive X:X:X:X::/YY and return two separated fields: IPv6 ADdress and Prefix.
+-- Receive X:X:X:X::/YY and return two separated fields: IPv6 Address and
+-- Prefix.
 --   
 --  The lesser prefix that return it's 48 because before usually is IANA Field.
 -- @param  IPv6PRefix  A String IPv6 address with Prefix: X:X:X:X::/YY
@@ -470,8 +472,8 @@ end
 --- 
 -- This function will initialize the global registry nmap.registry.itsismx 
 --
--- Will check if was already called by one previous script if not, will create it.
---  In both cases  a sub entry will be generated too.
+-- Will check if was already called by one previous script if not, will
+-- create it. In both cases  a sub entry will be generated too.
 -- @param String with the prefix for the global registry to check.
   Registro_Global_Inicializar =  function ( Registro )
 
@@ -484,11 +486,11 @@ end
     
     nmap.registry.itsismx = Global
     
-  elseif  Global[Registro] == nil then -- CAREFUL! Don't overwrite other registry
+  elseif  Global[Registro] == nil then -- Don't overwrite other registry
     nmap.registry.itsismx[Registro]  = {}
     
-  end -- This Ok, a previous script, or maybe a previous run of our script had already  create
-    -- the registry, we don-t want to destroy the current data.
+  end -- This Ok, a previous script, or maybe a previous run of our script 
+      -- had already  create. 
 end
 
 ---
@@ -558,7 +560,7 @@ Is_Valid_OUI = function (  OUI )
 end 
 
 ---
--- Get a binary number represent with strings. Will check than only have 
+-- Get a binary number represent with strings. Will check than only have
 -- zeroes and ones.
 -- @param  Bits  String representing a binary value.
 -- @return  Boolean  TRUE if is a valid binary number, otherwise false. 
@@ -577,9 +579,10 @@ end
 --- 
 -- This function will do NOTHING but kill time. 
 --
--- LUA does not provide something similar. This only is useful IF WE NEED TO WAIT 
--- or KILL TIME for avoid detections  on pre-scanning or   post-scanning phases.
--- as Nmap provide more powerful tools for the other two phases
+-- LUA does not provide something similar. 
+-- This only is useful IF WE NEED TO WAIT or KILL TIME for avoid detections
+-- on pre-scanning or post-scanning phases. as Nmap provide more powerful
+-- tools  for the other two phases.
 -- @param micrseconds   Number of microseconds to wait
 waitUtime = function ( micrseconds ) 
   
@@ -591,11 +594,12 @@ end
 ---
 -- Convert hexadecimal characters (Strings) to binary (Strings).
 -- 
--- For some part of the script, I need to work bits separated before be able to use 
--- the functions of ipOPs library. So, We need be able to convert from hex to binary.
+-- For some part of the script, I need to work bits separated before be able
+-- to use the functions of ipOPs library. So, We need be able to convert from
+-- hex to binary.
 --  NOTE: THIS NEEDS WORK
--- @param    Number    String  representing hexadecimal number.
--- @return   String    String  representing binary number (Nil if there is a error)
+-- @param  Number  String  representing hexadecimal number.
+-- @return String  String  representing binary number (Nil if there is a error)
 HextToBin = function( Number )
 
   local Bits , hex, index = ""
@@ -603,7 +607,6 @@ HextToBin = function( Number )
   for index = 1, #Number do
     hex = Number:sub(index,index)
     
-    --Not the best... I need to change it later ...
     if hex == "0" then
       Bits = Bits .. "0000"
     elseif hex == "1" then
