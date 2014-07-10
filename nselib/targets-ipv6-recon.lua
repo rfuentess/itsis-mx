@@ -512,20 +512,24 @@ end
     return Global[Registro]
   end
 end
+ 
 ---
 -- Convert Decimal number to Hexadecimal. 
 --
--- Originally was using other people code,
--- And one day... the casting was so obvious I did without notice.
+-- Taken from:
+-- http://snipplr.com/view/13086/
 -- @param   Number    A Lua number format
 -- @return  String    String representing Hexadecimal value 
 function DecToHex(Number)
-	--we need to cast the dec to hex and then convert the
-	if not( type(Number)) == "number" then
-		return "0"
-	else
-		return tonumber(tostring(Number), 16)
-	end
+    local hexstr = '0123456789abcdef'
+    local s = ''
+    while Number > 0 do
+        local mod = math.fmod(Number, 16)
+        s = string.sub(hexstr, mod+1, mod+1) .. s
+        Number = math.floor(Number / 16)
+    end
+    if s == '' then s = '0' end
+    return s
 end
 
 ---
